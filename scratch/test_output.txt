@@ -1,0 +1,13 @@
+Starting test...
+Testing initDatabase...
+ERROR during sync test: attempt to write a readonly database SqliteError: attempt to write a readonly database
+    at Database.exec (C:\SYSTEMS\MYSYSTEM\flowdesk\node_modules\better-sqlite3\lib\methods\wrappers.js:9:14)
+    at createTables (C:\SYSTEMS\MYSYSTEM\flowdesk\electron\database.js:416:8)
+    at initDatabase (C:\SYSTEMS\MYSYSTEM\flowdesk\electron\database.js:38:3)
+    at Object.<anonymous> (C:\SYSTEMS\MYSYSTEM\flowdesk\scratch\test_save_ad.cjs:13:14)
+    at Module._compile (node:internal/modules/cjs/loader:1937:14)
+    at Object..js (node:internal/modules/cjs/loader:2070:10)
+    at Module.load (node:internal/modules/cjs/loader:1658:32)
+    at Module._load (node:internal/modules/cjs/loader:1450:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:268:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)

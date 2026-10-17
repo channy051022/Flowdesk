@@ -1,0 +1,75 @@
+{
+  "name": "flowdesk",
+  "productName": "FlowDesk",
+  "version": "1.0.0",
+  "description": "Local Document Tracking & Office Productivity Workspace",
+  "author": "FlowDesk",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
+    "electron:build": "vite build && electron-builder --win"
+  },
+  "build": {
+    "appId": "com.flowdesk.desktop",
+    "productName": "FlowDesk",
+    "copyright": "Copyright © 2026 FlowDesk",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**"
+    ],
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "public/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FlowDesk",
+      "artifactName": "FlowDesk-Setup.${ext}",
+      "deleteAppDataOnUninstall": false
+    }
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "dexie": "^4.4.6",
+    "lucide-vue-next": "^1.0.0",
+    "pinia": "^4.1.0",
+    "vue": "^3.5.42",
+    "vue-router": "^5.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "concurrently": "^10.0.6",
+    "cross-env": "^10.1.0",
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.0",
+    "vite-plugin-pwa": "^2.0.0",
+    "wait-on": "^9.5.1"
+  }
+}
