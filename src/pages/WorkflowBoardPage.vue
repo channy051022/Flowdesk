@@ -404,7 +404,7 @@ const getPriorityBorderClass = () => ''
 <template>
   <div class="space-y-5">
     <!-- Notice Banner -->
-    <div class="bg-forest-50/70 border border-forest-200/70 rounded-xl p-3.5 flex items-start justify-between gap-3 text-xs text-forest-900 shadow-2xs">
+    <!-- <div class="bg-forest-50/70 border border-forest-200/70 rounded-xl p-3.5 flex items-start justify-between gap-3 text-xs text-forest-900 shadow-2xs">
       <div class="flex items-start gap-3">
         <Info class="w-4 h-4 text-forest-700 shrink-0 mt-0.5" />
         <div>
@@ -422,7 +422,7 @@ const getPriorityBorderClass = () => ''
           <span>Switch to Registry Table</span>
         </router-link>
       </div>
-    </div>
+    </div> -->
 
     <!-- Feedback Toast Alert -->
     <transition
