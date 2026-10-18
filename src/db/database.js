@@ -126,6 +126,11 @@ dexieDb.version(10).stores({
   })
 })
 
+// Version 11: Attachments table for documents, tasks, and finance Activity Designs
+dexieDb.version(11).stores({
+  attachments: '++id, entityType, entityId, fileName, fileSize, fileType, relativePath, notes, createdAt'
+})
+
 export const FOLDER_BEHAVIORS = [
   { value: 'internal', label: 'Internal Workflow Stage' },
   { value: 'destination', label: 'Physical Routing Destination' }

@@ -15,9 +15,9 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  FileBox,
   ShieldCheck
 } from 'lucide-vue-next'
+import appLogo from '../../assets/icon.png'
 import { getFinanceSummaryMetrics } from '../../services/financeService'
 import { getTaskSummaryMetrics } from '../../services/taskService'
 import { getDocumentSummaryMetrics } from '../../services/documentService'
@@ -175,16 +175,25 @@ const handleNavClick = () => {
       ]"
     >
       <!-- Top Brand Header -->
-      <div class="h-14 flex items-center justify-between px-3.5 border-b border-[#F0E3E9] shrink-0">
+      <div
+        :class="[
+          'h-14 flex items-center border-b border-[#F0E3E9] shrink-0 transition-all',
+          appStore.isSidebarCollapsed && !appStore.isMobileSidebarOpen
+            ? 'justify-center px-2'
+            : 'justify-between px-3.5'
+        ]"
+      >
         <router-link
           to="/dashboard"
           @click="handleNavClick"
           class="flex items-center gap-2.5 overflow-hidden group focus:outline-none"
         >
           <!-- Logo Mark -->
-          <div class="w-8 h-8 rounded-lg bg-[#D9467B] flex items-center justify-center text-white shrink-0 shadow-xs group-hover:bg-[#BE3568] transition-colors">
-            <FileBox class="w-4 h-4 text-[#FCE7F0]" />
-          </div>
+          <img
+            :src="appLogo"
+            alt="FlowDesk Logo"
+            class="w-8 h-8 object-contain shrink-0 group-hover:scale-105 transition-transform"
+          />
 
           <!-- Logo Text -->
           <div

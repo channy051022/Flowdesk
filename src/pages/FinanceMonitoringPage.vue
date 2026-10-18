@@ -24,6 +24,7 @@ import BaseBadge from '../components/common/BaseBadge.vue'
 import BaseButton from '../components/common/BaseButton.vue'
 import FinanceRecordModal from '../components/finance/FinanceRecordModal.vue'
 import FinanceDetailModal from '../components/finance/FinanceDetailModal.vue'
+import ScannerModal from '../components/scanner/ScannerModal.vue'
 import { toast } from '../composables/useToast'
 import {
   Landmark,
@@ -46,7 +47,8 @@ import {
   DollarSign,
   Coins,
   Check,
-  RotateCcw
+  RotateCcw,
+  Scan
 } from 'lucide-vue-next'
 
 // State
@@ -132,6 +134,19 @@ const isFormModalOpen = ref(false)
 const recordToEdit = ref(null)
 const isDetailModalOpen = ref(false)
 const selectedRecord = ref(null)
+
+// Hardware Scanner Modal State
+const isScannerModalOpen = ref(false)
+const recordToScan = ref(null)
+
+const openScannerModal = (record = null) => {
+  recordToScan.value = record
+  isScannerModalOpen.value = true
+}
+
+const handleScanAttached = async () => {
+  await loadRecords()
+}
 
 // Delete confirmation state
 const isDeleteConfirmOpen = ref(false)
@@ -369,6 +384,12 @@ const getAdBadgeVariant = (status) => {
       </div>
 
       <div class="flex items-center gap-2 shrink-0">
+        <!-- Scan Document Button -->
+        <BaseButton variant="secondary" size="sm" @click="openScannerModal(null)">
+          <Scan class="w-3.5 h-3.5 text-forest-700 mr-1.5" />
+          Scan Document
+        </BaseButton>
+
         <!-- Add Record Button -->
         <BaseButton variant="primary" size="sm" @click="openAddModal">
           <Plus class="w-3.5 h-3.5 text-rose-200 mr-1.5" />
@@ -791,6 +812,17 @@ const getAdBadgeVariant = (status) => {
                       <Eye class="w-3.5 h-3.5" />
                     </button>
 
+                    <!-- Scan & Attach Document Button -->
+                    <button
+                      @click="openScannerModal(item)"
+                      type="button"
+                      class="p-1.5 rounded-md text-zinc-400 hover:text-[#D9467B] hover:bg-pink-50 transition-colors"
+                      title="Scan & attach document to this Activity Design"
+                      aria-label="Scan document"
+                    >
+                      <Scan class="w-3.5 h-3.5" />
+                    </button>
+
                     <!-- Edit Button -->
                     <button
                       @click="openEditModal(item)"
@@ -1070,6 +1102,15 @@ const getAdBadgeVariant = (status) => {
       @close="isDetailModalOpen = false"
       @edit="openEditModal"
       @delete="confirmDelete"
+      @scan="openScannerModal"
+    />
+
+    <!-- FlowDesk Desktop Hardware Scanner Modal -->
+    <ScannerModal
+      :isOpen="isScannerModalOpen"
+      :activityDesign="recordToScan"
+      @close="isScannerModalOpen = false"
+      @attached="handleScanAttached"
     />
 
     <!-- Delete Confirmation Modal Dialog -->

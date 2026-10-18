@@ -8,6 +8,12 @@ import {
 import { normalizeChargedTo, getChargeCategory } from '../../constants/chargedToOptions'
 import BaseBadge from '../common/BaseBadge.vue'
 import {
+  getEntityAttachments,
+  openAttachment,
+  deleteEntityAttachment,
+  isDesktopApp
+} from '../../services/scannerService'
+import {
   X,
   Edit2,
   Trash2,
@@ -17,7 +23,11 @@ import {
   ShieldCheck,
   Check,
   Coins,
-  Layers
+  Layers,
+  Scan,
+  FileText,
+  Paperclip,
+  ExternalLink
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -31,11 +41,55 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'edit', 'delete'])
+const emit = defineEmits(['close', 'edit', 'delete', 'scan', 'refresh'])
 
 const copiedKey = ref('')
 const budgetEntries = ref([])
 const isLoadingBudgets = ref(false)
+const attachmentsList = ref([])
+const isLoadingAttachments = ref(false)
+
+const formatBytes = (bytes) => {
+  if (!bytes || bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+const loadAttachments = async () => {
+  if (!props.record?.id) {
+    attachmentsList.value = []
+    return
+  }
+  isLoadingAttachments.value = true
+  try {
+    attachmentsList.value = await getEntityAttachments('finance', props.record.id)
+  } catch (err) {
+    console.warn('Failed to load attachments in detail modal:', err)
+    attachmentsList.value = []
+  } finally {
+    isLoadingAttachments.value = false
+  }
+}
+
+const handleOpenAttachment = async (att) => {
+  try {
+    await openAttachment(att)
+  } catch (err) {
+    alert('Failed to open attachment: ' + err.message)
+  }
+}
+
+const handleDeleteAttachment = async (att) => {
+  if (!confirm(`Remove attachment "${att.fileName}"? This will delete the saved file.`)) return
+  try {
+    await deleteEntityAttachment(att.id)
+    await loadAttachments()
+  } catch (err) {
+    alert('Error deleting attachment: ' + err.message)
+  }
+}
 
 const normalizedCharges = computed(() => {
   return normalizeChargedTo(props.record?.chargedTo)
@@ -62,8 +116,10 @@ watch(
   ([isOpen, recordId]) => {
     if (isOpen && recordId) {
       loadBudgetEntries()
+      loadAttachments()
     } else {
       budgetEntries.value = []
+      attachmentsList.value = []
     }
   },
   { immediate: true }
@@ -371,6 +427,85 @@ const copyValue = (val, key) => {
           </div>
         </div>
 
+        <!-- 11. Attached Scans & Documents Section -->
+        <div class="space-y-2 pt-2 border-t border-zinc-100">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-semibold text-zinc-800 flex items-center gap-1.5">
+              <Paperclip class="w-3.5 h-3.5 text-forest-700" />
+              11. Attached Scans & Documents
+            </span>
+            <div class="flex items-center gap-1.5">
+              <span class="text-[10px] text-zinc-400">
+                {{ attachmentsList.length }} {{ attachmentsList.length === 1 ? 'file' : 'files' }}
+              </span>
+              <button
+                @click="emit('scan', record)"
+                type="button"
+                class="px-2 py-0.5 rounded-md bg-[#FFF0F5] hover:bg-[#FCE7F0] text-[#D9467B] border border-[#F3C4D7] text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                title="Scan document for this Activity Design"
+              >
+                <Scan class="w-3 h-3" />
+                <span>Scan Document</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Attachments List -->
+          <div v-if="isLoadingAttachments" class="p-3 text-center text-zinc-400 text-xs">
+            Loading attachments...
+          </div>
+          <div v-else-if="attachmentsList.length > 0" class="space-y-1.5">
+            <div
+              v-for="att in attachmentsList"
+              :key="att.id"
+              class="flex items-center justify-between p-2.5 rounded-lg bg-zinc-50 border border-zinc-200/80 hover:bg-zinc-100/60 transition-colors group"
+            >
+              <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                <div class="w-7 h-7 rounded-md bg-white border border-zinc-200 flex items-center justify-center text-forest-700 shrink-0">
+                  <FileText class="w-4 h-4" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-semibold text-zinc-900 truncate text-xs" :title="att.fileName">
+                      {{ att.fileName }}
+                    </span>
+                    <span class="text-[10px] text-zinc-400 font-mono shrink-0">
+                      ({{ formatBytes(att.fileSize) }})
+                    </span>
+                  </div>
+                  <p v-if="att.notes" class="text-[10px] text-zinc-500 truncate mt-0.5">
+                    {{ att.notes }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Action buttons for attachment -->
+              <div class="flex items-center gap-1 shrink-0 ml-2">
+                <button
+                  @click="handleOpenAttachment(att)"
+                  type="button"
+                  class="px-2 py-1 rounded text-[11px] font-medium text-forest-800 hover:bg-forest-100/70 border border-forest-200 inline-flex items-center gap-1 cursor-pointer transition-colors"
+                  title="Open attachment in default application"
+                >
+                  <ExternalLink class="w-3 h-3" />
+                  <span>Open</span>
+                </button>
+                <button
+                  @click="handleDeleteAttachment(att)"
+                  type="button"
+                  class="p-1 rounded text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                  title="Delete attachment"
+                >
+                  <Trash2 class="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+          <div v-else class="p-3 rounded-lg bg-zinc-50 border border-dashed border-zinc-200 text-center text-zinc-400 text-xs">
+            No physical scans attached to this Activity Design yet. Click <strong>Scan Document</strong> to scan paperwork directly into FlowDesk.
+          </div>
+        </div>
+
         <!-- Audit & Sync Metadata -->
         <div class="pt-2 text-[10px] text-zinc-400 flex items-center justify-between border-t border-zinc-100">
           <span>Created: {{ formatDate(record.createdAt) }}</span>
@@ -393,6 +528,15 @@ const copyValue = (val, key) => {
         </button>
 
         <div class="flex items-center gap-2">
+          <button
+            @click="emit('scan', record)"
+            type="button"
+            class="px-3 py-1.5 rounded-lg bg-pink-50 hover:bg-pink-100 text-[#D9467B] border border-[#F3C4D7] text-xs font-semibold transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-2xs"
+          >
+            <Scan class="w-3.5 h-3.5" />
+            <span>Scan Document</span>
+          </button>
+
           <button
             @click="emit('close')"
             type="button"

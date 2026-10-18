@@ -18,6 +18,22 @@ const {
   restoreBackup,
   selectBackupFolder
 } = require('./services/backupService');
+const {
+  initScannerService,
+  checkAvailability: checkScannerAvailability,
+  discoverDevices: discoverScannerDevices,
+  startSession: startScanSession,
+  scan: executeScan,
+  deletePage: deleteScanPage,
+  getSessionPreview: getScanSessionPreview,
+  getPdfBuffer: getScanPdfBuffer,
+  cancelScan: cancelActiveScan,
+  discardSession: discardScanSession,
+  finalize: finalizeScan,
+  getScannerSettings,
+  saveScannerSettings,
+  selectNaps2Executable
+} = require('./services/scannerService');
 
 let mainWindow = null;
 let storagePaths = null;
@@ -59,6 +75,7 @@ function setupStorageDirectories() {
   initDatabase(dataDir);
   initFileService(attachmentsDir, dbService);
   initBackupService(storagePaths, dbService);
+  initScannerService(storagePaths, dbService);
 }
 
 /**
@@ -233,6 +250,59 @@ function registerIpcHandlers() {
 
   ipcMain.handle('flowdesk:backup:selectFolder', async () => {
     return await selectBackupFolder(mainWindow);
+  });
+
+  // --- Hardware Scanner Operations (NAPS2 Integration) ---
+  ipcMain.handle('flowdesk:scanner:checkAvailability', async () => {
+    return await checkScannerAvailability();
+  });
+
+  ipcMain.handle('flowdesk:scanner:discoverDevices', async () => {
+    return await discoverScannerDevices();
+  });
+
+  ipcMain.handle('flowdesk:scanner:startSession', async (event, opts) => {
+    return startScanSession(opts || {});
+  });
+
+  ipcMain.handle('flowdesk:scanner:scan', async (event, opts) => {
+    return await executeScan(opts);
+  });
+
+  ipcMain.handle('flowdesk:scanner:deletePage', async (event, sessionId, pageNumber) => {
+    return await deleteScanPage(sessionId, pageNumber);
+  });
+
+  ipcMain.handle('flowdesk:scanner:getSessionPreview', async (event, sessionId) => {
+    return await getScanSessionPreview(sessionId);
+  });
+
+  ipcMain.handle('flowdesk:scanner:getPdfBuffer', async (event, sessionId) => {
+    return await getScanPdfBuffer(sessionId);
+  });
+
+  ipcMain.handle('flowdesk:scanner:cancelScan', async (event, sessionId) => {
+    return cancelActiveScan(sessionId);
+  });
+
+  ipcMain.handle('flowdesk:scanner:discardSession', async (event, sessionId) => {
+    return discardScanSession(sessionId);
+  });
+
+  ipcMain.handle('flowdesk:scanner:finalize', async (event, opts) => {
+    return await finalizeScan(opts);
+  });
+
+  ipcMain.handle('flowdesk:scanner:getSettings', async () => {
+    return await getScannerSettings();
+  });
+
+  ipcMain.handle('flowdesk:scanner:saveSettings', async (event, settings) => {
+    return await saveScannerSettings(settings);
+  });
+
+  ipcMain.handle('flowdesk:scanner:selectNaps2Path', async () => {
+    return await selectNaps2Executable(mainWindow);
   });
 
   // --- Window Controls ---

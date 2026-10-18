@@ -40,6 +40,23 @@ contextBridge.exposeInMainWorld('flowdeskAPI', {
     selectBackupFolder: () => ipcRenderer.invoke('flowdesk:backup:selectFolder')
   },
 
+  // Hardware Scanner operations (NAPS2 Integration)
+  scanner: {
+    checkAvailability: () => ipcRenderer.invoke('flowdesk:scanner:checkAvailability'),
+    discoverDevices: () => ipcRenderer.invoke('flowdesk:scanner:discoverDevices'),
+    startSession: (opts) => ipcRenderer.invoke('flowdesk:scanner:startSession', opts),
+    scan: (opts) => ipcRenderer.invoke('flowdesk:scanner:scan', opts),
+    deletePage: (sessionId, pageNumber) => ipcRenderer.invoke('flowdesk:scanner:deletePage', sessionId, pageNumber),
+    getSessionPreview: (sessionId) => ipcRenderer.invoke('flowdesk:scanner:getSessionPreview', sessionId),
+    getPdfBuffer: (sessionId) => ipcRenderer.invoke('flowdesk:scanner:getPdfBuffer', sessionId),
+    cancelScan: (sessionId) => ipcRenderer.invoke('flowdesk:scanner:cancelScan', sessionId),
+    discardSession: (sessionId) => ipcRenderer.invoke('flowdesk:scanner:discardSession', sessionId),
+    finalize: (opts) => ipcRenderer.invoke('flowdesk:scanner:finalize', opts),
+    getSettings: () => ipcRenderer.invoke('flowdesk:scanner:getSettings'),
+    saveSettings: (settings) => ipcRenderer.invoke('flowdesk:scanner:saveSettings', settings),
+    selectNaps2Path: () => ipcRenderer.invoke('flowdesk:scanner:selectNaps2Path')
+  },
+
   // Desktop App Window Control
   app: {
     getVersion: () => ipcRenderer.invoke('flowdesk:app:getVersion'),
