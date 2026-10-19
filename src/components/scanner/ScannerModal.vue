@@ -492,7 +492,6 @@ onUnmounted(() => {
     class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-zinc-950/60 backdrop-blur-xs overflow-y-auto"
     role="dialog"
     aria-modal="true"
-    @click.self="handleCloseModal(true)"
   >
     <div
       class="bg-white rounded-2xl shadow-2xl border border-zinc-200/90 w-full max-w-6xl my-auto overflow-hidden flex flex-col h-[90vh] max-h-[880px] animate-in fade-in zoom-in-95 duration-200"

@@ -28,28 +28,28 @@ const getStyles = (type) => {
   switch (type) {
     case 'success':
       return {
-        card: 'border-emerald-200 bg-white text-emerald-950 shadow-md',
-        iconBg: 'bg-emerald-100 text-emerald-700',
-        badge: 'text-emerald-700'
+        card: 'border-emerald-200 dark:border-emerald-800/60 bg-white dark:bg-[#1A261E] text-emerald-950 dark:text-emerald-100 shadow-md',
+        iconBg: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300',
+        badge: 'text-emerald-700 dark:text-emerald-300'
       }
     case 'warning':
       return {
-        card: 'border-amber-200 bg-white text-amber-950 shadow-md',
-        iconBg: 'bg-amber-100 text-amber-700',
-        badge: 'text-amber-700'
+        card: 'border-amber-200 dark:border-amber-800/60 bg-white dark:bg-[#261E14] text-amber-950 dark:text-amber-100 shadow-md',
+        iconBg: 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300',
+        badge: 'text-amber-700 dark:text-amber-300'
       }
     case 'error':
       return {
-        card: 'border-rose-200 bg-white text-rose-950 shadow-md',
-        iconBg: 'bg-rose-100 text-rose-700',
-        badge: 'text-rose-700'
+        card: 'border-rose-200 dark:border-rose-800/60 bg-white dark:bg-[#26141B] text-rose-950 dark:text-rose-100 shadow-md',
+        iconBg: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300',
+        badge: 'text-rose-700 dark:text-rose-300'
       }
     case 'info':
     default:
       return {
-        card: 'border-pink-200 bg-white text-[#3D2934] shadow-md',
-        iconBg: 'bg-pink-100 text-[#D9467B]',
-        badge: 'text-[#D9467B]'
+        card: 'border-pink-200 dark:border-pink-800/60 bg-white dark:bg-[#1F191D] text-[#3D2934] dark:text-[#F5EDF1] shadow-md',
+        iconBg: 'bg-pink-100 dark:bg-pink-900/60 text-[#D9467B] dark:text-[#F472B6]',
+        badge: 'text-[#D9467B] dark:text-[#F472B6]'
       }
   }
 }
@@ -84,10 +84,10 @@ const getStyles = (type) => {
         </div>
 
         <div class="flex-1 min-w-0 pr-1">
-          <p class="text-xs font-semibold leading-tight text-zinc-900">
+          <p class="text-xs font-semibold leading-tight text-zinc-900 dark:text-[#F5EDF1]">
             {{ item.title }}
           </p>
-          <p v-if="item.description" class="text-[11px] text-zinc-600 mt-1 leading-snug">
+          <p v-if="item.description" class="text-[11px] text-zinc-600 dark:text-[#BCAEBA] mt-1 leading-snug">
             {{ item.description }}
           </p>
         </div>
@@ -95,7 +95,7 @@ const getStyles = (type) => {
         <button
           @click="removeToast(item.id)"
           type="button"
-          class="p-1 rounded-md text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer shrink-0"
+          class="p-1 rounded-md text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
           aria-label="Dismiss notification"
         >
           <X class="w-3.5 h-3.5" />

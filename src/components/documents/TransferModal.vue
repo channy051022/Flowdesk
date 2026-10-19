@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue'
 import BaseButton from '../common/BaseButton.vue'
-import { getOffices } from '../../services/officeService'
+import { getOffices, generateCodeFromName } from '../../services/officeService'
 import { initiateTransfer } from '../../services/documentService'
 import {
   Send,
@@ -113,7 +113,6 @@ const handleSubmit = async () => {
   <div
     v-if="isOpen"
     class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs overflow-y-auto"
-    @click.self="emit('close')"
   >
     <div
       class="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-zinc-200 overflow-hidden text-left my-8"
@@ -178,7 +177,7 @@ const handleSubmit = async () => {
           <div class="flex-1 min-w-0">
             <span class="text-[10px] text-zinc-400 uppercase font-semibold block">Origin / Current</span>
             <div class="font-semibold text-zinc-800 truncate text-xs mt-0.5">
-              {{ currentOffice ? `[${currentOffice.code}] ${currentOffice.name}` : 'Current Office' }}
+              {{ currentOffice ? `[${currentOffice.code || generateCodeFromName(currentOffice.name)}] ${currentOffice.name}` : 'Current Office' }}
             </div>
           </div>
 
@@ -211,7 +210,7 @@ const handleSubmit = async () => {
               :key="off.id"
               :value="off.id"
             >
-              [{{ off.code }}] {{ off.name }} {{ off.id === document?.currentOfficeId ? '(Current Office)' : '' }}
+              [{{ off.code || generateCodeFromName(off.name) }}] {{ off.name }} {{ off.id === document?.currentOfficeId ? '(Current Office)' : '' }}
             </option>
           </select>
         </div>

@@ -162,7 +162,6 @@ const handleRestoreBackup = async () => {
   <div
     v-if="isOpen"
     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-xs"
-    @click.self="emit('close')"
   >
     <div
       class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-[#F0E3E9] overflow-hidden flex flex-col max-h-[90vh]"

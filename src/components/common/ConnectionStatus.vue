@@ -57,7 +57,6 @@ const openStorageManager = () => {
     <div
       v-if="showDetails"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/25 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 sm:bg-transparent sm:p-0"
-      @click.self="showDetails = false"
     >
       <div class="w-full max-w-sm sm:max-w-none bg-white rounded-xl shadow-lg border border-[#F0E3E9] p-4 text-left text-[#3D2934]">
         <div class="flex items-center justify-between pb-2 mb-3 border-b border-[#F0E3E9]">

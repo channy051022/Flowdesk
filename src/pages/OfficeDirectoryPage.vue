@@ -1,29 +1,30 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import BaseCard from '../components/common/BaseCard.vue'
 import BaseButton from '../components/common/BaseButton.vue'
 import {
   getOffices,
   createOffice,
   updateOffice,
-  toggleFavoriteOffice
+  deleteOffice,
+  toggleFavoriteOffice,
+  generateCodeFromName
 } from '../services/officeService'
 import { toast } from '../composables/useToast'
 import {
   Building2,
   Search,
-  Phone,
-  Mail,
   MapPin,
-  User,
   Plus,
-  Info,
   Star,
   Edit2,
+  Trash2,
   X
 } from 'lucide-vue-next'
 
-const searchQuery = ref('')
+const route = useRoute()
+const searchQuery = ref(route.query.search ? String(route.query.search) : '')
 const categoryFilter = ref('all')
 const officesList = ref([])
 const isLoading = ref(true)
@@ -34,13 +35,16 @@ const modalMode = ref('add') // 'add' | 'edit'
 const editingOfficeId = ref(null)
 
 const formName = ref('')
+const formCode = ref('')
 const formType = ref('Internal')
-const formContactPerson = ref('')
 const formRoom = ref('')
-const formExtension = ref('')
-const formEmail = ref('')
-const formMessengerNotes = ref('')
+const codeManuallyEdited = ref(false)
 const isSubmitting = ref(false)
+
+// Delete Office Modal state
+const isDeleteModalOpen = ref(false)
+const officeToDelete = ref(null)
+const isDeleting = ref(false)
 
 const loadOfficesData = async () => {
   isLoading.value = true
@@ -57,8 +61,20 @@ const loadOfficesData = async () => {
 }
 
 onMounted(() => {
+  if (route.query.search) {
+    searchQuery.value = String(route.query.search)
+  }
   loadOfficesData()
 })
+
+watch(
+  () => route.query.search,
+  (newSearch) => {
+    if (newSearch !== undefined) {
+      searchQuery.value = String(newSearch || '')
+    }
+  }
+)
 
 watch([searchQuery, categoryFilter], () => {
   loadOfficesData()
@@ -73,16 +89,20 @@ const handleToggleFavorite = async (office) => {
   }
 }
 
+const onNameInput = () => {
+  if (!codeManuallyEdited.value && modalMode.value === 'add') {
+    formCode.value = generateCodeFromName(formName.value)
+  }
+}
+
 const openAddModal = () => {
   modalMode.value = 'add'
   editingOfficeId.value = null
   formName.value = ''
+  formCode.value = ''
   formType.value = 'Internal'
-  formContactPerson.value = ''
   formRoom.value = ''
-  formExtension.value = ''
-  formEmail.value = ''
-  formMessengerNotes.value = ''
+  codeManuallyEdited.value = false
   isModalOpen.value = true
 }
 
@@ -90,13 +110,39 @@ const openEditModal = (office) => {
   modalMode.value = 'edit'
   editingOfficeId.value = office.id
   formName.value = office.name || ''
+  formCode.value = office.code || generateCodeFromName(office.name)
   formType.value = office.type || 'Internal'
-  formContactPerson.value = office.contactPerson || ''
   formRoom.value = office.room || ''
-  formExtension.value = office.extension || ''
-  formEmail.value = office.email || ''
-  formMessengerNotes.value = office.messengerNotes || ''
+  codeManuallyEdited.value = true
   isModalOpen.value = true
+}
+
+const openDeleteModal = (office) => {
+  if (
+    (office.name || '').trim().toUpperCase() === 'TCYSDO OFFICE' ||
+    (office.code || '').trim().toUpperCase() === 'TCYSDO'
+  ) {
+    toast.warning('Default Office Protected', 'TCYSDO OFFICE is the primary system routing destination and cannot be deleted.')
+    return
+  }
+  officeToDelete.value = office
+  isDeleteModalOpen.value = true
+}
+
+const confirmDeleteOffice = async () => {
+  if (!officeToDelete.value) return
+  isDeleting.value = true
+  try {
+    await deleteOffice(officeToDelete.value.id)
+    toast.success('Office removed.', `"${officeToDelete.value.name}" was removed from the directory.`)
+    isDeleteModalOpen.value = false
+    officeToDelete.value = null
+    await loadOfficesData()
+  } catch (err) {
+    toast.error('Failed to remove office', err.message)
+  } finally {
+    isDeleting.value = false
+  }
 }
 
 const handleSaveOffice = async () => {
@@ -105,16 +151,15 @@ const handleSaveOffice = async () => {
     return
   }
 
+  const finalCode = formCode.value.trim().toUpperCase() || generateCodeFromName(formName.value)
+
   isSubmitting.value = true
   try {
     const payload = {
       name: formName.value.trim(),
+      code: finalCode,
       type: formType.value,
-      contactPerson: formContactPerson.value.trim(),
-      room: formRoom.value.trim(),
-      extension: formExtension.value.trim(),
-      email: formEmail.value.trim(),
-      messengerNotes: formMessengerNotes.value.trim()
+      room: formRoom.value.trim()
     }
 
     if (modalMode.value === 'edit' && editingOfficeId.value) {
@@ -140,15 +185,6 @@ const handleSaveOffice = async () => {
 
 <template>
   <div class="space-y-6">
-    <!-- Notice Banner -->
-    <!-- <div class="bg-forest-50/70 border border-forest-200/70 rounded-xl p-3.5 flex items-start gap-3 text-xs text-forest-900 shadow-2xs">
-      <Info class="w-4 h-4 text-forest-700 shrink-0 mt-0.5" />
-      <div>
-        <span class="font-semibold text-forest-950">Official Government Office Directory:</span>
-        These units represent internal divisions, regional executive suites, and external oversight bodies used across FlowDesk's Document Tracker and dispatch workflows.
-      </div>
-    </div> -->
-
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
@@ -156,7 +192,7 @@ const handleSaveOffice = async () => {
           Office Directory
         </h2>
         <p class="text-xs sm:text-sm text-zinc-500 mt-0.5">
-          Directory of government units, division chiefs, room locations, and routing messenger notes.
+          Official directory of government units, division offices, short codes, and room locations.
         </p>
       </div>
 
@@ -197,7 +233,7 @@ const handleSaveOffice = async () => {
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Search office name, extension, code..."
+          placeholder="Search office name, short code, room..."
           class="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-zinc-200/80 rounded-lg text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-forest-600"
         />
       </div>
@@ -215,14 +251,14 @@ const handleSaveOffice = async () => {
         :key="office.id"
         class="bg-white rounded-xl border border-zinc-200/80 p-4 shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between gap-3 text-xs relative group"
       >
-        <div class="space-y-2">
+        <div class="space-y-2.5">
           <!-- Top Tag & Code + Action Buttons -->
           <div class="flex items-center justify-between">
-            <span class="font-mono text-[10px] font-semibold bg-forest-50 text-forest-800 px-2 py-0.5 rounded border border-forest-100">
-              {{ office.code || 'UNIT' }}
+            <span class="font-mono text-[10px] font-bold bg-forest-50 text-forest-800 px-2 py-0.5 rounded border border-forest-100 uppercase tracking-wide">
+              {{ office.code || generateCodeFromName(office.name) || 'OFFICE' }}
             </span>
-            <div class="flex items-center gap-1.5">
-              <span class="text-[10px] font-medium text-zinc-400 uppercase">
+            <div class="flex items-center gap-1">
+              <span class="text-[10px] font-medium text-zinc-400 uppercase mr-1">
                 {{ office.type }}
               </span>
               <!-- Quick Edit Button -->
@@ -234,6 +270,17 @@ const handleSaveOffice = async () => {
                 aria-label="Edit office"
               >
                 <Edit2 class="w-3.5 h-3.5" />
+              </button>
+              <!-- Delete Button -->
+              <button
+                v-if="(office.code || '').toUpperCase() !== 'TCYSDO' && (office.name || '').toUpperCase() !== 'TCYSDO OFFICE'"
+                @click="openDeleteModal(office)"
+                type="button"
+                class="p-1 rounded hover:bg-red-50 text-zinc-400 hover:text-red-600 transition-colors cursor-pointer"
+                title="Remove office"
+                aria-label="Remove office"
+              >
+                <Trash2 class="w-3.5 h-3.5" />
               </button>
               <!-- Favorite Button -->
               <button
@@ -255,43 +302,41 @@ const handleSaveOffice = async () => {
             {{ office.name }}
           </h3>
 
-          <!-- Contact Person -->
-          <div v-if="office.contactPerson" class="flex items-start gap-1.5 text-zinc-600 text-[11px]">
-            <User class="w-3.5 h-3.5 text-zinc-400 shrink-0 mt-0.5" />
-            <span>{{ office.contactPerson }}</span>
-          </div>
-
           <!-- Room Location -->
           <div v-if="office.room" class="flex items-start gap-1.5 text-zinc-600 text-[11px]">
             <MapPin class="w-3.5 h-3.5 text-zinc-400 shrink-0 mt-0.5" />
             <span>{{ office.room }}</span>
           </div>
-
-          <!-- Phone / Extension -->
-          <div v-if="office.extension" class="flex items-center gap-1.5 text-forest-800 font-medium text-[11px]">
-            <Phone class="w-3.5 h-3.5 text-forest-700 shrink-0" />
-            <span>Ext. {{ office.extension }}</span>
+          <div v-else class="text-[11px] text-zinc-400 italic">
+            <span>Location not specified</span>
           </div>
         </div>
 
-        <!-- Messenger Notes & Action Footer -->
-        <div class="pt-2 border-t border-zinc-100 flex items-center justify-between gap-2">
-          <div v-if="office.messengerNotes" class="text-[10px] text-zinc-500 truncate flex-1" :title="office.messengerNotes">
-            <span class="font-medium text-zinc-700">Note:</span> {{ office.messengerNotes }}
-          </div>
-          <div v-else-if="office.email" class="text-[10px] text-zinc-400 truncate flex-1">
-            {{ office.email }}
-          </div>
-          <div v-else class="flex-1"></div>
+        <!-- Action Footer -->
+        <div class="pt-2.5 border-t border-zinc-100 flex items-center justify-between text-[11px]">
+          <span class="text-zinc-400 text-[10px] font-mono">
+            #{{ office.id }}
+          </span>
 
-          <button
-            @click="openEditModal(office)"
-            type="button"
-            class="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:text-rose-800 hover:underline shrink-0 cursor-pointer"
-          >
-            <Edit2 class="w-3 h-3" />
-            <span>Edit</span>
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              @click="openEditModal(office)"
+              type="button"
+              class="inline-flex items-center gap-1 font-semibold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer"
+            >
+              <Edit2 class="w-3 h-3" />
+              <span>Edit</span>
+            </button>
+            <button
+              v-if="(office.code || '').toUpperCase() !== 'TCYSDO' && (office.name || '').toUpperCase() !== 'TCYSDO OFFICE'"
+              @click="openDeleteModal(office)"
+              type="button"
+              class="inline-flex items-center gap-1 font-semibold text-red-600 hover:text-red-800 hover:underline cursor-pointer ml-1"
+            >
+              <Trash2 class="w-3 h-3" />
+              <span>Remove</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -305,7 +350,6 @@ const handleSaveOffice = async () => {
     <div
       v-if="isModalOpen"
       class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs overflow-y-auto"
-      @click.self="isModalOpen = false"
     >
       <div
         class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-zinc-200 overflow-hidden text-left my-8"
@@ -322,7 +366,7 @@ const handleSaveOffice = async () => {
                 {{ modalMode === 'edit' ? 'Edit Government Office Entry' : 'Add Government Office Entry' }}
               </h3>
               <p class="text-xs text-zinc-500 mt-0.5">
-                {{ modalMode === 'edit' ? 'Update official details, division chief, room, or extension' : 'Register internal division or external oversight agency' }}
+                {{ modalMode === 'edit' ? 'Update official name, code, or room location' : 'Register government office or internal division' }}
               </p>
             </div>
           </div>
@@ -343,87 +387,55 @@ const handleSaveOffice = async () => {
             </label>
             <input
               v-model="formName"
+              @input="onNameInput"
               type="text"
-              placeholder="e.g. Regional Information & Communications Section"
+              placeholder="e.g. City Legal Office"
               class="w-full px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-800 focus:outline-none focus:ring-2 focus:ring-rose-500 text-xs"
               required
             />
           </div>
 
-          <div>
-            <label class="block font-semibold text-zinc-800 mb-1">
-              Office Type
-            </label>
-            <select
-              v-model="formType"
-              class="w-full px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-800 focus:outline-none focus:ring-2 focus:ring-rose-500 text-xs cursor-pointer"
-            >
-              <option value="Internal">Internal Division</option>
-              <option value="Executive">Executive Office</option>
-              <option value="External">External Agency</option>
-            </select>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-zinc-800 mb-1">
+                Office Code / Acronym <span class="text-red-500">*</span>
+              </label>
+              <input
+                v-model="formCode"
+                @input="codeManuallyEdited = true"
+                type="text"
+                placeholder="e.g. CLO, PIO, HRMD"
+                class="w-full px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-800 uppercase focus:outline-none focus:ring-2 focus:ring-rose-500 text-xs font-mono font-medium"
+                required
+              />
+              <p class="text-[10px] text-zinc-400 mt-0.5">Short badge code used in routing slips</p>
+            </div>
+
+            <div>
+              <label class="block font-semibold text-zinc-800 mb-1">
+                Office Type
+              </label>
+              <select
+                v-model="formType"
+                class="w-full px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-800 focus:outline-none focus:ring-2 focus:ring-rose-500 text-xs cursor-pointer"
+              >
+                <option value="Internal">Internal Division</option>
+                <option value="Executive">Executive Office</option>
+                <option value="External">External Agency</option>
+              </select>
+            </div>
           </div>
 
           <div>
             <label class="block font-semibold text-zinc-800 mb-1">
-              Contact Person / Division Chief
+              Room / Floor / Building Location
             </label>
             <input
-              v-model="formContactPerson"
+              v-model="formRoom"
               type="text"
-              placeholder="e.g. Juanita Cruz (Section Chief)"
+              placeholder="e.g. 2nd Floor, Room 208, Executive Building"
               class="w-full px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-800 focus:outline-none focus:ring-2 focus:ring-rose-500 text-xs"
             />
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block font-semibold text-zinc-800 mb-1">
-                Room / Floor Location
-              </label>
-              <input
-                v-model="formRoom"
-                type="text"
-                placeholder="e.g. 2nd Floor, Room 208"
-                class="w-full px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-800 focus:outline-none focus:ring-2 focus:ring-rose-500 text-xs"
-              />
-            </div>
-
-            <div>
-              <label class="block font-semibold text-zinc-800 mb-1">
-                Telephone / Extension
-              </label>
-              <input
-                v-model="formExtension"
-                type="text"
-                placeholder="e.g. 208, (02) 8800-4100"
-                class="w-full px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-800 focus:outline-none focus:ring-2 focus:ring-rose-500 text-xs"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label class="block font-semibold text-zinc-800 mb-1">
-              Official Email Address
-            </label>
-            <input
-              v-model="formEmail"
-              type="email"
-              placeholder="e.g. office@tagumcity.gov.ph"
-              class="w-full px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-800 focus:outline-none focus:ring-2 focus:ring-rose-500 text-xs"
-            />
-          </div>
-
-          <div>
-            <label class="block font-semibold text-zinc-800 mb-1">
-              Courier / Messenger Routing Notes
-            </label>
-            <textarea
-              v-model="formMessengerNotes"
-              rows="2"
-              placeholder="e.g. Receiving hours 9:00 AM - 4:00 PM; stamped copies required..."
-              class="w-full px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-800 focus:outline-none focus:ring-2 focus:ring-rose-500 text-xs resize-none"
-            ></textarea>
           </div>
 
           <div class="pt-3 border-t border-zinc-100 flex items-center justify-end gap-2">
@@ -446,6 +458,50 @@ const handleSaveOffice = async () => {
             </BaseButton>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal Dialog -->
+    <div
+      v-if="isDeleteModalOpen && officeToDelete"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 backdrop-blur-xs"
+      role="alertdialog"
+      aria-modal="true"
+    >
+      <div class="bg-white rounded-xl shadow-xl border border-zinc-200 p-5 w-full max-w-sm space-y-4 animate-in fade-in duration-150">
+        <div class="flex items-start gap-3">
+          <div class="w-9 h-9 rounded-lg bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+            <Trash2 class="w-4 h-4" />
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-zinc-900">Remove Office Entry</h4>
+            <p class="text-xs text-zinc-500 mt-1 leading-relaxed">
+              Are you sure you want to remove <strong class="text-zinc-800">"{{ officeToDelete.name }}"</strong> ({{ officeToDelete.code || 'UNIT' }}) from the directory?
+            </p>
+            <p class="text-[11px] text-zinc-400 mt-1.5 leading-normal">
+              Existing document movement records will remain intact in audit logs.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-zinc-100">
+          <BaseButton
+            type="button"
+            variant="secondary"
+            size="sm"
+            @click="isDeleteModalOpen = false; officeToDelete = null"
+          >
+            Cancel
+          </BaseButton>
+          <button
+            type="button"
+            @click="confirmDeleteOffice"
+            :disabled="isDeleting"
+            class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {{ isDeleting ? 'Removing...' : 'Confirm Remove' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>

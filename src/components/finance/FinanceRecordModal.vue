@@ -268,7 +268,6 @@ const handleSave = async () => {
   <div
     v-if="isOpen"
     class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-zinc-900/40 backdrop-blur-xs overflow-y-auto"
-    @click.self="emit('close')"
     @keydown="handleKeyDown"
     role="dialog"
     aria-modal="true"

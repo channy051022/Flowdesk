@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
+import { useThemeStore } from '../../stores/theme'
 import {
   LayoutDashboard,
   Landmark,
@@ -15,7 +16,9 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  ShieldCheck
+  Sun,
+  Moon,
+  Monitor
 } from 'lucide-vue-next'
 import appLogo from '../../assets/icon.png'
 import { getFinanceSummaryMetrics } from '../../services/financeService'
@@ -23,6 +26,7 @@ import { getTaskSummaryMetrics } from '../../services/taskService'
 import { getDocumentSummaryMetrics } from '../../services/documentService'
 
 const appStore = useAppStore()
+const themeStore = useThemeStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -167,7 +171,7 @@ const handleNavClick = () => {
     <!-- Sidebar Container -->
     <aside
       :class="[
-        'fixed top-0 bottom-0 left-0 z-40 flex flex-col bg-[#FFFDFE] border-r border-[#F0E3E9] transition-all duration-200 ease-in-out',
+        'fixed top-0 bottom-0 left-0 z-40 flex flex-col bg-[#FFFDFE] dark:bg-[#1A1719] border-r border-[#F0E3E9] dark:border-[#2D252B] transition-all duration-200 ease-in-out',
         // Desktop collapse width
         appStore.isSidebarCollapsed ? 'lg:w-16' : 'lg:w-64',
         // Mobile visibility
@@ -177,7 +181,7 @@ const handleNavClick = () => {
       <!-- Top Brand Header -->
       <div
         :class="[
-          'h-14 flex items-center border-b border-[#F0E3E9] shrink-0 transition-all',
+          'h-14 flex items-center border-b border-[#F0E3E9] dark:border-[#2D252B] shrink-0 transition-all',
           appStore.isSidebarCollapsed && !appStore.isMobileSidebarOpen
             ? 'justify-center px-2'
             : 'justify-between px-3.5'
@@ -200,10 +204,10 @@ const handleNavClick = () => {
             v-if="!appStore.isSidebarCollapsed || appStore.isMobileSidebarOpen"
             class="flex flex-col min-w-0"
           >
-            <span class="text-sm font-bold tracking-tight text-[#3D2934] truncate">
+            <span class="text-sm font-bold tracking-tight text-[#3D2934] dark:text-[#F5EDF1] truncate">
               FlowDesk
             </span>
-            <span class="text-[10px] font-medium text-[#D9467B] tracking-wider uppercase truncate">
+            <span class="text-[10px] font-medium text-[#D9467B] dark:text-[#F294B7] tracking-wider uppercase truncate">
               Gov Document Desk
             </span>
           </div>
@@ -213,7 +217,7 @@ const handleNavClick = () => {
         <button
           @click="appStore.closeMobileSidebar"
           type="button"
-          class="lg:hidden p-1.5 rounded-md text-[#806B76] hover:text-[#3D2934] hover:bg-[#FFF7FA] transition-colors"
+          class="lg:hidden p-1.5 rounded-md text-[#806B76] dark:text-[#BCAEBA] hover:text-[#3D2934] dark:hover:text-[#F5EDF1] hover:bg-[#FFF7FA] dark:hover:bg-[#251F23] transition-colors"
           aria-label="Close navigation sidebar"
         >
           <X class="w-5 h-5" />
@@ -230,14 +234,14 @@ const handleNavClick = () => {
           <!-- Section Heading -->
           <div
             v-if="(!appStore.isSidebarCollapsed || appStore.isMobileSidebarOpen)"
-            class="px-2.5 mb-1.5 text-[10px] font-semibold tracking-wider text-[#A18D98] uppercase"
+            class="px-2.5 mb-1.5 text-[10px] font-semibold tracking-wider text-[#A18D98] dark:text-[#806B76] uppercase"
           >
             {{ section.title }}
           </div>
 
           <div
             v-else
-            class="h-px bg-[#F0E3E9] my-2 mx-1"
+            class="h-px bg-[#F0E3E9] dark:bg-[#2D252B] my-2 mx-1"
             aria-hidden="true"
           />
 
@@ -256,8 +260,8 @@ const handleNavClick = () => {
               :class="[
                 'group flex items-center gap-3 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 relative select-none',
                 isActive
-                  ? 'bg-[#FCE7F0] text-[#D9467B] font-semibold shadow-2xs'
-                  : 'text-[#806B76] hover:text-[#3D2934] hover:bg-[#FFF7FA]',
+                  ? 'bg-[#FCE7F0] dark:bg-[#2D1F28] text-[#D9467B] dark:text-[#F294B7] font-semibold shadow-2xs'
+                  : 'text-[#806B76] dark:text-[#BCAEBA] hover:text-[#3D2934] dark:hover:text-[#F5EDF1] hover:bg-[#FFF7FA] dark:hover:bg-[#251F23]',
                 appStore.isSidebarCollapsed && !appStore.isMobileSidebarOpen
                   ? 'justify-center px-0'
                   : ''
@@ -269,8 +273,8 @@ const handleNavClick = () => {
                 :class="[
                   'w-4 h-4 shrink-0 transition-colors',
                   isActive
-                    ? 'text-[#D9467B]'
-                    : 'text-[#A18D98] group-hover:text-[#D9467B]'
+                    ? 'text-[#D9467B] dark:text-[#F294B7]'
+                    : 'text-[#A18D98] dark:text-[#806B76] group-hover:text-[#D9467B] dark:group-hover:text-[#F294B7]'
                 ]"
               />
 
@@ -290,8 +294,8 @@ const handleNavClick = () => {
                   isActive
                     ? 'bg-[#D9467B] text-white'
                     : item.badgeUrgent
-                    ? 'bg-[#FFF0F5] text-[#C2415D] border border-[#F3C4D7]'
-                    : 'bg-[#FAF4F7] text-[#806B76] border border-[#F0E3E9]'
+                    ? 'bg-[#FFF0F5] dark:bg-rose-950/40 text-[#C2415D] dark:text-rose-300 border border-[#F3C4D7] dark:border-rose-900/50'
+                    : 'bg-[#FAF4F7] dark:bg-[#251F23] text-[#806B76] dark:text-[#BCAEBA] border border-[#F0E3E9] dark:border-[#3D2D38]'
                 ]"
               >
                 {{ item.badge }}
@@ -307,38 +311,82 @@ const handleNavClick = () => {
         </div>
       </div>
 
-      <!-- Desktop Sidebar Footer / Collapse Toggle -->
-      <div class="p-2.5 border-t border-[#F0E3E9] bg-[#FFF7FA]/60 space-y-2 shrink-0">
-        <!-- Desk Identity Card -->
+      <!-- Desktop Sidebar Footer / Theme Switcher / Collapse Toggle -->
+      <div class="p-2.5 border-t border-[#F0E3E9] dark:border-[#2D252B] bg-[#FFF7FA]/60 dark:bg-[#141214]/60 shrink-0 space-y-2">
+        <!-- Theme Segmented Control (Expanded mode) -->
         <div
           v-if="!appStore.isSidebarCollapsed || appStore.isMobileSidebarOpen"
-          class="flex items-center gap-2.5 p-2 rounded-lg bg-white border border-[#F0E3E9] shadow-2xs"
+          class="flex items-center justify-between p-1 bg-white dark:bg-[#251F23] border border-[#F0E3E9] dark:border-[#2D252B] rounded-lg"
         >
-          <div class="w-7 h-7 rounded-md bg-[#FCE7F0] border border-[#F3C4D7] flex items-center justify-center text-[#D9467B] font-bold text-xs shrink-0">
-            FD
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="text-xs font-semibold text-[#3D2934] truncate">
-              Admin Officer Desk
-            </p>
-            <p class="text-[10px] text-[#806B76] flex items-center gap-1 truncate">
-              <ShieldCheck class="w-3 h-3 text-[#D9467B]" />
-              Private Local Mode
-            </p>
-          </div>
+          <button
+            @click="themeStore.setPreference('light')"
+            type="button"
+            :class="[
+              'flex-1 flex items-center justify-center gap-1.5 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer',
+              themeStore.preference === 'light'
+                ? 'bg-[#FFF0F5] dark:bg-[#2D1F28] text-[#D9467B] dark:text-[#F294B7] font-semibold shadow-2xs'
+                : 'text-[#806B76] dark:text-[#BCAEBA] hover:text-[#3D2934] dark:hover:text-[#F5EDF1]'
+            ]"
+            title="Light Theme"
+          >
+            <Sun class="w-3.5 h-3.5 text-amber-500" />
+            <span>Light</span>
+          </button>
+          <button
+            @click="themeStore.setPreference('dark')"
+            type="button"
+            :class="[
+              'flex-1 flex items-center justify-center gap-1.5 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer',
+              themeStore.preference === 'dark'
+                ? 'bg-[#FFF0F5] dark:bg-[#2D1F28] text-[#D9467B] dark:text-[#F294B7] font-semibold shadow-2xs'
+                : 'text-[#806B76] dark:text-[#BCAEBA] hover:text-[#3D2934] dark:hover:text-[#F5EDF1]'
+            ]"
+            title="Dark Theme"
+          >
+            <Moon class="w-3.5 h-3.5 text-rose-400" />
+            <span>Dark</span>
+          </button>
+          <button
+            @click="themeStore.setPreference('system')"
+            type="button"
+            :class="[
+              'flex-1 flex items-center justify-center gap-1.5 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer',
+              themeStore.preference === 'system'
+                ? 'bg-[#FFF0F5] dark:bg-[#2D1F28] text-[#D9467B] dark:text-[#F294B7] font-semibold shadow-2xs'
+                : 'text-[#806B76] dark:text-[#BCAEBA] hover:text-[#3D2934] dark:hover:text-[#F5EDF1]'
+            ]"
+            title="System OS Theme"
+          >
+            <Monitor class="w-3.5 h-3.5 text-[#D9467B]" />
+            <span>Auto</span>
+          </button>
+        </div>
+
+        <!-- Collapsed Theme Button (Icon Only) -->
+        <div v-else class="flex justify-center">
+          <button
+            @click="themeStore.toggleTheme"
+            type="button"
+            class="p-1.5 rounded-lg text-[#806B76] dark:text-[#BCAEBA] hover:text-[#3D2934] dark:hover:text-[#F5EDF1] hover:bg-[#FFF7FA] dark:hover:bg-[#251F23] transition-colors cursor-pointer"
+            :title="`Theme: ${themeStore.preference} (Click to toggle)`"
+          >
+            <Sun v-if="themeStore.preference === 'light'" class="w-4 h-4 text-amber-500" />
+            <Moon v-else-if="themeStore.preference === 'dark'" class="w-4 h-4 text-rose-400" />
+            <Monitor v-else class="w-4 h-4 text-[#D9467B]" />
+          </button>
         </div>
 
         <!-- Desktop Collapse Button -->
         <button
           @click="appStore.toggleSidebar"
           type="button"
-          class="hidden lg:flex w-full items-center justify-center gap-2 px-2 py-1.5 text-xs text-[#806B76] hover:text-[#3D2934] hover:bg-[#FFF7FA] rounded-lg transition-colors"
+          class="hidden lg:flex w-full items-center justify-center gap-2 px-2 py-1.5 text-xs text-[#806B76] dark:text-[#BCAEBA] hover:text-[#3D2934] dark:hover:text-[#F5EDF1] hover:bg-[#FFF7FA] dark:hover:bg-[#251F23] rounded-lg transition-colors cursor-pointer"
           :title="appStore.isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
           :aria-label="appStore.isSidebarCollapsed ? 'Expand navigation sidebar' : 'Collapse navigation sidebar'"
         >
           <component
             :is="appStore.isSidebarCollapsed ? ChevronRight : ChevronLeft"
-            class="w-4 h-4 text-[#A18D98]"
+            class="w-4 h-4 text-[#A18D98] dark:text-[#806B76]"
           />
           <span v-if="!appStore.isSidebarCollapsed" class="text-[11px] font-medium">
             Collapse sidebar

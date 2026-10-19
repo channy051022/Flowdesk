@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* Elegant Pink Color Palette */
   --color-primary-rose: #D9467B;
@@ -80,6 +82,101 @@
   --color-neutral-border: #F0E3E9;
 }
 
+/* System-Wide Dark Mode Theme Tokens & Variable Remapping */
+.dark,
+html.dark {
+  color-scheme: dark;
+  --color-primary-rose: #E85D8F;
+  --color-primary-hover: #D9467B;
+  --color-soft-pink: #2B1822;
+  --color-blush-bg: #1F191D;
+  --color-pale-pink: #241C22;
+  --color-rose-border: #4D3341;
+  --color-main-bg: #121113;
+  --color-card-bg: #1A1719;
+  --color-primary-text: #F5EDF1;
+  --color-secondary-text: #BCAEBA;
+  --color-muted-text: #958493;
+  --color-neutral-border: #2D252B;
+
+  /* Zinc Scale in Dark Mode */
+  --color-zinc-950: #FFFFFF;
+  --color-zinc-900: #F5EDF1;
+  --color-zinc-800: #EAE0E5;
+  --color-zinc-700: #DDD2D9;
+  --color-zinc-600: #C4B3BD;
+  --color-zinc-500: #A89AA6;
+  --color-zinc-400: #958493;
+  --color-zinc-300: #5E4E59;
+  --color-zinc-200: #3D2D38;
+  --color-zinc-100: #282327;
+  --color-zinc-50:  #211D20;
+
+  /* Mapped Brand Tokens in Dark Mode */
+  --color-forest-950: #F5EDF1;
+  --color-forest-900: #F294B7;
+  --color-forest-800: #E85D8F;
+  --color-forest-700: #F294B7;
+  --color-forest-600: #E85D8F;
+  --color-forest-500: #D9467B;
+  --color-forest-400: #E2729D;
+  --color-forest-300: #5C2E47;
+  --color-forest-200: #422133;
+  --color-forest-100: #2E1724;
+  --color-forest-50:  #24131D;
+
+  /* Plum Scale in Dark Mode */
+  --color-plum-950: #FFFFFF;
+  --color-plum-900: #F5EDF1;
+  --color-plum-800: #EAE0E5;
+  --color-plum-700: #DDD2D9;
+  --color-plum-600: #C4B3BD;
+  --color-plum-500: #A89AA6;
+  --color-plum-400: #958493;
+  --color-plum-300: #5E4E59;
+  --color-plum-200: #3D2D38;
+  --color-plum-100: #282327;
+  --color-plum-50:  #211D20;
+
+  /* Rose Scale in Dark Mode */
+  --color-rose-950: #F5EDF1;
+  --color-rose-900: #F294B7;
+  --color-rose-800: #E85D8F;
+  --color-rose-700: #F294B7;
+  --color-rose-600: #E85D8F;
+  --color-rose-500: #DF578C;
+  --color-rose-400: #E883A9;
+  --color-rose-300: #5C2E47;
+  --color-rose-200: #422133;
+  --color-rose-100: #2E1724;
+  --color-rose-50:  #24131D;
+
+  /* Gray & Slate Scales in Dark Mode */
+  --color-gray-950: #FFFFFF;
+  --color-gray-900: #F5EDF1;
+  --color-gray-800: #EAE0E5;
+  --color-gray-700: #DDD2D9;
+  --color-gray-600: #C4B3BD;
+  --color-gray-500: #A89AA6;
+  --color-gray-400: #958493;
+  --color-gray-300: #5E4E59;
+  --color-gray-200: #3D2D38;
+  --color-gray-100: #282327;
+  --color-gray-50:  #211D20;
+
+  --color-slate-950: #FFFFFF;
+  --color-slate-900: #F5EDF1;
+  --color-slate-800: #EAE0E5;
+  --color-slate-700: #DDD2D9;
+  --color-slate-600: #C4B3BD;
+  --color-slate-500: #A89AA6;
+  --color-slate-400: #958493;
+  --color-slate-300: #5E4E59;
+  --color-slate-200: #3D2D38;
+  --color-slate-100: #282327;
+  --color-slate-50:  #211D20;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -92,6 +189,14 @@ body,
   padding: 0;
   background-color: #FFF9FB;
   color: #3D2934;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+html.dark,
+html.dark body,
+html.dark #app {
+  background-color: #121113;
+  color: #F5EDF1;
 }
 
 button {
@@ -121,6 +226,15 @@ button:disabled {
   background: #E883A9;
 }
 
+/* Dark mode scrollbars */
+html.dark ::-webkit-scrollbar-thumb {
+  background: #4D3341;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6E445B;
+}
+
 /* Accessible focus styling in primary rose */
 :focus-visible {
   outline: 2px solid #D9467B;
@@ -131,3 +245,345 @@ button:disabled {
   background-color: #FCE7F0;
   color: #3D2934;
 }
+
+html.dark ::selection {
+  background-color: #4D2538;
+  color: #FCE7F0;
+}
+
+/* =========================================================================
+   System-Wide Dark Mode Surfaces, Text & Interactive States
+   ========================================================================= */
+
+/* Neutral Surfaces */
+html.dark .bg-white,
+html.dark [class*="bg-white"] {
+  background-color: #1A1719 !important;
+}
+
+html.dark .bg-zinc-50,
+html.dark [class*="bg-zinc-50"] {
+  background-color: #211D20 !important;
+}
+
+html.dark .bg-zinc-100,
+html.dark [class*="bg-zinc-100"] {
+  background-color: #282327 !important;
+}
+
+html.dark [class*="bg-[#FFF9FB]"],
+html.dark [class*="bg-[#FFF7FA]"],
+html.dark [class*="bg-[#FFFDFE]"],
+html.dark [class*="bg-[#FFF0F5]"],
+html.dark [class*="bg-[#FFF5F8]"],
+html.dark [class*="bg-[#FAF4F7]"],
+html.dark [class*="bg-[#F8F5F7]"] {
+  background-color: #1A1719 !important;
+}
+
+html.dark [class*="bg-[#FCE7F0]"],
+html.dark [class*="bg-[#FDF2F7]"],
+html.dark [class*="bg-[#FDF2F8]"],
+html.dark [class*="bg-[#FAF5FF]"] {
+  background-color: #261D24 !important;
+}
+
+/* Neutral & Brand Borders */
+html.dark .border-zinc-200,
+html.dark .border-zinc-100,
+html.dark .border-zinc-300,
+html.dark [class*="border-zinc-100"],
+html.dark [class*="border-zinc-200"],
+html.dark [class*="border-zinc-300"] {
+  border-color: #2D252B !important;
+}
+
+html.dark [class*="border-[#F0E3E9]"],
+html.dark [class*="border-[#F3C4D7]"],
+html.dark [class*="border-[#EAE1E6]"],
+html.dark [class*="border-[#F2DEE7]"],
+html.dark [class*="border-[#F5DEE7]"] {
+  border-color: #3D2D38 !important;
+}
+
+/* Dividers */
+html.dark .divide-zinc-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-zinc-200 > :not([hidden]) ~ :not([hidden]),
+html.dark [class*="divide-zinc-"] > :not([hidden]) ~ :not([hidden]),
+html.dark [class*="divide-[#F0E3E9]"] > :not([hidden]) ~ :not([hidden]),
+html.dark [class*="divide-[#F3C4D7]"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: #2D252B !important;
+}
+
+/* Primary Text Hierarchy */
+html.dark .text-zinc-900,
+html.dark .text-zinc-800,
+html.dark .text-forest-950,
+html.dark .text-rose-950,
+html.dark [class*="text-zinc-900"],
+html.dark [class*="text-zinc-800"],
+html.dark [class*="text-[#3D2934]"],
+html.dark [class*="text-[#4D3543]"] {
+  color: #F5EDF1 !important;
+}
+
+/* Secondary Text Hierarchy */
+html.dark .text-zinc-700,
+html.dark [class*="text-zinc-700"],
+html.dark [class*="text-[#624A58]"],
+html.dark [class*="text-[#735A69]"] {
+  color: #DDD2D9 !important;
+}
+
+/* Muted & Tertiary Text */
+html.dark .text-zinc-600,
+html.dark .text-zinc-500,
+html.dark [class*="text-zinc-600"],
+html.dark [class*="text-zinc-500"],
+html.dark [class*="text-[#806B76]"] {
+  color: #BCAEBA !important;
+}
+
+html.dark .text-zinc-400,
+html.dark [class*="text-zinc-400"],
+html.dark [class*="text-[#A18D98]"] {
+  color: #958493 !important;
+}
+
+/* Interactive Brand Text */
+html.dark .text-forest-900,
+html.dark .text-forest-800,
+html.dark .text-forest-700,
+html.dark [class*="text-forest-900"],
+html.dark [class*="text-forest-800"],
+html.dark [class*="text-forest-700"] {
+  color: #F294B7 !important;
+}
+
+/* Interactive Hover States */
+html.dark .hover\:bg-zinc-50:hover,
+html.dark [class*="hover:bg-zinc-50"]:hover,
+html.dark [class*="hover:bg-forest-50"]:hover {
+  background-color: #251F23 !important;
+}
+
+html.dark .hover\:bg-zinc-100:hover,
+html.dark [class*="hover:bg-zinc-100"]:hover,
+html.dark [class*="hover:bg-forest-100"]:hover {
+  background-color: #2D252B !important;
+}
+
+html.dark [class*="hover:bg-[#FFF7FA]"]:hover,
+html.dark [class*="hover:bg-[#FAF4F7]"]:hover,
+html.dark [class*="hover:bg-[#FFF0F5]"]:hover,
+html.dark [class*="hover:bg-[#FDF2F7]"]:hover,
+html.dark [class*="hover:bg-[#FCE7F0]"]:hover {
+  background-color: #2D252B !important;
+}
+
+html.dark .group:hover .group-hover\:text-forest-900 {
+  color: #F294B7 !important;
+}
+
+html.dark .group:hover .group-hover\:bg-forest-800 {
+  background-color: #D9467B !important;
+  color: #FFFFFF !important;
+}
+
+/* Tables Base & Alignment */
+table tbody td,
+table thead th {
+  vertical-align: middle;
+}
+
+/* Tables in Dark Mode */
+html.dark table thead tr {
+  background-color: #211D20 !important;
+  border-color: #3D2D38 !important;
+}
+
+html.dark table thead th {
+  color: #DDD2D9 !important;
+  border-color: #3D2D38 !important;
+}
+
+html.dark table tbody tr:hover {
+  background-color: #251F23 !important;
+}
+
+html.dark table tfoot tr {
+  background-color: #211D20 !important;
+  border-color: #3D2D38 !important;
+}
+
+html.dark table tfoot td {
+  border-color: #3D2D38 !important;
+}
+
+/* Modals & Dialogs Backdrop */
+html.dark .bg-black\/40,
+html.dark .bg-black\/50,
+html.dark .bg-black\/70,
+html.dark .bg-zinc-900\/40,
+html.dark .bg-zinc-900\/50,
+html.dark .bg-zinc-950\/60 {
+  background-color: rgba(0, 0, 0, 0.75) !important;
+}
+
+/* Form Controls in Dark Mode */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="range"]),
+html.dark select,
+html.dark textarea {
+  background-color: #211D20 !important;
+  border-color: #3D2D38 !important;
+  color: #F5EDF1 !important;
+  color-scheme: dark;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder,
+html.dark [class*="placeholder:text-"]::placeholder {
+  color: #958493 !important;
+}
+
+html.dark input:focus,
+html.dark select:focus,
+html.dark textarea:focus {
+  border-color: #E85D8F !important;
+  outline-color: #E85D8F !important;
+}
+
+/* Soft Status Badges in Dark Mode (50 Scale) */
+html.dark .bg-rose-50,
+html.dark [class*="bg-rose-50"] {
+  background-color: rgba(217, 70, 123, 0.18) !important;
+  color: #F8CFDF !important;
+  border-color: rgba(217, 70, 123, 0.35) !important;
+}
+
+html.dark .bg-emerald-50,
+html.dark [class*="bg-emerald-50"] {
+  background-color: rgba(16, 185, 129, 0.18) !important;
+  color: #A7F3D0 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+html.dark .bg-amber-50,
+html.dark [class*="bg-amber-50"] {
+  background-color: rgba(245, 158, 11, 0.18) !important;
+  color: #FDE68A !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
+html.dark .bg-sky-50,
+html.dark .bg-blue-50,
+html.dark [class*="bg-sky-50"],
+html.dark [class*="bg-blue-50"] {
+  background-color: rgba(56, 189, 248, 0.18) !important;
+  color: #BAE6FD !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}
+
+html.dark .bg-purple-50,
+html.dark [class*="bg-purple-50"] {
+  background-color: rgba(168, 85, 247, 0.18) !important;
+  color: #E9D5FF !important;
+  border-color: rgba(168, 85, 247, 0.35) !important;
+}
+
+html.dark .bg-red-50,
+html.dark [class*="bg-red-50"] {
+  background-color: rgba(239, 68, 68, 0.18) !important;
+  color: #FECACA !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+html.dark .bg-pink-50,
+html.dark [class*="bg-pink-50"] {
+  background-color: rgba(217, 70, 123, 0.18) !important;
+  color: #F8CFDF !important;
+  border-color: rgba(217, 70, 123, 0.35) !important;
+}
+
+/* Status Chips & Badges in Dark Mode (100 Scale) */
+html.dark .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.22) !important;
+  color: #FDE68A !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+}
+
+html.dark .text-amber-800,
+html.dark .text-amber-700 {
+  color: #FBBF24 !important;
+}
+
+html.dark .bg-red-100 {
+  background-color: rgba(239, 68, 68, 0.22) !important;
+  color: #FECACA !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+html.dark .text-red-700,
+html.dark .text-red-800 {
+  color: #F87171 !important;
+}
+
+html.dark .bg-emerald-100 {
+  background-color: rgba(16, 185, 129, 0.22) !important;
+  color: #A7F3D0 !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+html.dark .text-emerald-800,
+html.dark .text-emerald-700 {
+  color: #34D399 !important;
+}
+
+html.dark .bg-sky-100,
+html.dark .bg-blue-100 {
+  background-color: rgba(56, 189, 248, 0.22) !important;
+  color: #BAE6FD !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+}
+
+html.dark .text-sky-800,
+html.dark .text-sky-700,
+html.dark .text-blue-700 {
+  color: #38BDF8 !important;
+}
+
+html.dark .bg-rose-100 {
+  background-color: rgba(217, 70, 123, 0.22) !important;
+  color: #F8CFDF !important;
+  border-color: rgba(217, 70, 123, 0.4) !important;
+}
+
+html.dark .text-rose-800,
+html.dark .text-rose-700 {
+  color: #F294B7 !important;
+}
+
+/* Print Preservation - Always print in clean, ink-friendly light theme */
+@media print {
+  html, body, #app, .dark, html.dark {
+    background-color: #ffffff !important;
+    color: #18181b !important;
+    color-scheme: light !important;
+  }
+  html.dark .bg-white {
+    background-color: #ffffff !important;
+  }
+  html.dark .bg-zinc-50 {
+    background-color: #f4f4f5 !important;
+  }
+  html.dark .text-zinc-900,
+  html.dark .text-zinc-800,
+  html.dark [class*="text-[#3D2934]"] {
+    color: #18181b !important;
+  }
+  html.dark .border-zinc-200,
+  html.dark .border-zinc-100 {
+    border-color: #e4e4e7 !important;
+  }
+}
+

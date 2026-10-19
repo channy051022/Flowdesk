@@ -10,7 +10,7 @@ const isDesktop = computed(() => typeof window !== 'undefined' && Boolean(window
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#FFF9FB] flex text-[#3D2934] antialiased">
+  <div class="min-h-screen bg-[#FFF9FB] dark:bg-[#121113] flex text-[#3D2934] dark:text-[#F5EDF1] antialiased transition-colors duration-150">
     <!-- Global Shadcn-style Notifications -->
     <ToastContainer />
 
@@ -33,7 +33,7 @@ const isDesktop = computed(() => typeof window !== 'undefined' && Boolean(window
       </main>
 
       <!-- Elegant Minimalist Footer -->
-      <footer class="py-4 px-6 border-t border-[#F0E3E9] bg-white/60 text-center text-[11px] text-[#806B76]">
+      <footer class="py-4 px-6 border-t border-[#F0E3E9] dark:border-[#2D252B] bg-white/60 dark:bg-[#1A1719]/80 text-center text-[11px] text-[#806B76] dark:text-[#BCAEBA] transition-colors duration-150">
         <div class="flex flex-col sm:flex-row items-center justify-between max-w-7xl mx-auto gap-2">
           <span>FlowDesk • Local Document Tracking & Office Productivity Workspace</span>
           <span class="inline-flex items-center gap-1.5 font-medium">

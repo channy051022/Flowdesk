@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   getTasks,
   createTask,
@@ -59,7 +60,8 @@ const outstandingPrReminders = computed(() => {
 })
 
 // Filters
-const searchQuery = ref('')
+const route = useRoute()
+const searchQuery = ref(route.query.search ? String(route.query.search) : '')
 const activeQuickFilter = ref('all')
 const selectedStatus = ref('all')
 const selectedPriority = ref('all')
@@ -99,9 +101,22 @@ const loadTasks = async () => {
 }
 
 onMounted(async () => {
+  if (route.query.search) {
+    searchQuery.value = String(route.query.search)
+  }
   await clearSampleTasks()
   await loadTasks()
 })
+
+watch(
+  () => route.query.search,
+  (newSearch) => {
+    if (newSearch !== undefined) {
+      searchQuery.value = String(newSearch || '')
+      loadTasks()
+    }
+  }
+)
 
 const handleFilterChange = () => {
   loadTasks()
@@ -298,18 +313,18 @@ const getPriorityBadge = (priority) => {
     <!-- Outstanding PR Creation Reminder Alert Banner (Informational Only) -->
     <div
       v-if="outstandingPrReminders.length > 0"
-      class="p-4 rounded-xl bg-[#FFF0F5] border border-[#F3C4D7] text-[#3D2934] shadow-xs space-y-3"
+      class="p-4 rounded-xl bg-[#FFF0F5] dark:bg-[#281822] border border-[#F3C4D7] dark:border-[#4D283C] text-[#3D2934] dark:text-[#F5EDF1] shadow-xs space-y-3"
     >
       <div class="flex items-start justify-between gap-3">
         <div class="flex items-start gap-2.5">
-          <div class="w-7 h-7 rounded-lg bg-[#FCE7F0] text-[#D9467B] flex items-center justify-center shrink-0 mt-0.5">
+          <div class="w-7 h-7 rounded-lg bg-[#FCE7F0] dark:bg-[#3D1E2F] text-[#D9467B] dark:text-[#F294B7] flex items-center justify-center shrink-0 mt-0.5">
             <AlertCircle class="w-4 h-4" />
           </div>
           <div>
-            <h4 class="text-xs font-bold text-[#BE3568] uppercase tracking-wider">
+            <h4 class="text-xs font-bold text-[#BE3568] dark:text-[#F294B7] uppercase tracking-wider">
               PR Creation Reminder ({{ outstandingPrReminders.length }})
             </h4>
-            <p class="text-[11px] text-[#806B76] mt-0.5">
+            <p class="text-[11px] text-[#806B76] dark:text-[#BCAEBA] mt-0.5">
               The following Activity Design(s) reached or passed the 40-day Purchase Request (PR) creation deadline.
             </p>
           </div>
@@ -324,7 +339,7 @@ const getPriorityBadge = (priority) => {
         </router-link>
       </div>
 
-      <div class="divide-y divide-[#F3C4D7]/70 pt-1">
+      <div class="divide-y divide-[#F3C4D7]/70 dark:divide-[#4D283C]/70 pt-1">
         <div
           v-for="item in outstandingPrReminders"
           :key="item.id"
@@ -332,23 +347,23 @@ const getPriorityBadge = (priority) => {
         >
           <div class="space-y-1 min-w-0 flex-1">
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-bold text-[#3D2934]">
+              <span class="font-bold text-[#3D2934] dark:text-[#F5EDF1]">
                 “{{ item.relatedFinanceRecord?.activityDesign || item.title.replace('PR Reminder: ', '') }}”
               </span>
               <BaseBadge :variant="item.prReminder?.badgeVariant || 'urgent'" size="xs">
                 {{ item.prReminder?.label || 'PR Due' }}
               </BaseBadge>
             </div>
-            <p class="text-[11px] text-[#806B76] leading-relaxed">
+            <p class="text-[11px] text-[#806B76] dark:text-[#BCAEBA] leading-relaxed">
               The Activity Design ‘<strong>{{ item.relatedFinanceRecord?.activityDesign || item.title.replace('PR Reminder: ', '') }}</strong>’ was created 40 days ago. Please create the Purchase Request (PR) for this AD.
             </p>
           </div>
 
-          <div class="flex items-center gap-2 text-[11px] text-[#806B76] shrink-0">
-            <span>Due: <strong class="text-[#3D2934]">{{ formatTaskDate(item.dueDate) }}</strong></span>
+          <div class="flex items-center gap-2 text-[11px] text-[#806B76] dark:text-[#BCAEBA] shrink-0">
+            <span>Due: <strong class="text-[#3D2934] dark:text-[#F5EDF1]">{{ formatTaskDate(item.dueDate) }}</strong></span>
             <router-link
               to="/finance"
-              class="text-xs text-[#D9467B] hover:text-[#BE3568] font-semibold underline ml-1 cursor-pointer"
+              class="text-xs text-[#D9467B] dark:text-[#F294B7] hover:text-[#BE3568] dark:hover:text-[#F8CFDF] font-semibold underline ml-1 cursor-pointer"
             >
               View in Finance
             </router-link>
@@ -357,10 +372,8 @@ const getPriorityBadge = (priority) => {
       </div>
     </div>
 
-
-
     <!-- Filter & Search Toolbar -->
-    <div class="bg-white rounded-xl border border-zinc-200/80 p-3.5 shadow-2xs space-y-3">
+    <div class="bg-white dark:bg-[#1A1719] rounded-xl border border-zinc-200/80 dark:border-[#2D252B] p-3.5 shadow-2xs space-y-3">
       <!-- Quick Filter Tabs -->
       <div class="flex items-center justify-between gap-2 flex-wrap">
         <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
@@ -378,8 +391,8 @@ const getPriorityBadge = (priority) => {
             :class="[
               'px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap cursor-pointer h-7 leading-none inline-flex items-center',
               activeQuickFilter === tab.id
-                ? 'bg-forest-800 text-white shadow-xs'
-                : 'text-zinc-600 hover:text-zinc-900 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200/80'
+                ? 'bg-[#D9467B] text-white shadow-xs font-semibold'
+                : 'text-zinc-600 dark:text-[#BCAEBA] hover:text-zinc-900 dark:hover:text-[#F5EDF1] bg-zinc-50 dark:bg-[#251F23] hover:bg-zinc-100 dark:hover:bg-[#2D232A] border border-zinc-200/80 dark:border-[#3D2D38]'
             ]"
           >
             {{ tab.label }}
@@ -714,7 +727,6 @@ const getPriorityBadge = (priority) => {
     <div
       v-if="isDeleteConfirmOpen && taskToDelete"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 backdrop-blur-xs"
-      @click.self="isDeleteConfirmOpen = false"
       role="alertdialog"
     >
       <div class="bg-white rounded-xl shadow-xl border border-zinc-200 p-5 w-full max-w-sm space-y-4 animate-in fade-in duration-150">

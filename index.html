@@ -1,17 +1,34 @@
 <!doctype html>
-<html lang="en" class="h-full bg-[#f8faf9]">
+<html lang="en" class="h-full bg-[#FFF9FB] dark:bg-[#121113]">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="description" content="FlowDesk — Private productivity and physical document-tracking PWA for government office workflows" />
-    <meta name="theme-color" content="#1b4332" />
+    <meta name="theme-color" content="#D9467B" />
+    <script>
+      (function() {
+        try {
+          var p = localStorage.getItem('flowdesk_theme') || 'light';
+          var isDark = p === 'dark' || (p === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.documentElement.style.colorScheme = 'dark';
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.documentElement.style.colorScheme = 'light';
+          }
+        } catch (_) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <title>FlowDesk — Document Tracking & Office Productivity</title>
   </head>
-  <body class="h-full font-sans antialiased text-zinc-900 bg-[#f8faf9]">
+  <body class="h-full font-sans antialiased text-[#3D2934] dark:text-[#F5EDF1] bg-[#FFF9FB] dark:bg-[#121113]">
     <div id="app" class="h-full"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

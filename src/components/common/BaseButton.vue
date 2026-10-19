@@ -27,11 +27,11 @@ const variantClasses = computed(() => {
     case 'primary':
       return 'bg-[#D9467B] hover:bg-[#BE3568] text-white shadow-xs border border-[#BE3568]/20 focus:ring-[#D9467B]'
     case 'secondary':
-      return 'bg-white hover:bg-[#FFF7FA] text-[#3D2934] border border-[#F0E3E9] shadow-2xs focus:ring-[#D9467B]'
+      return 'bg-white dark:bg-[#1F191D] hover:bg-[#FFF7FA] dark:hover:bg-[#251F23] text-[#3D2934] dark:text-[#F5EDF1] border border-[#F0E3E9] dark:border-[#2D252B] shadow-2xs focus:ring-[#D9467B]'
     case 'ghost':
-      return 'bg-transparent hover:bg-[#FFF7FA] text-[#806B76] hover:text-[#3D2934] focus:ring-[#D9467B]'
+      return 'bg-transparent hover:bg-[#FFF7FA] dark:hover:bg-[#1F191D] text-[#806B76] dark:text-[#BCAEBA] hover:text-[#3D2934] dark:hover:text-[#F5EDF1] focus:ring-[#D9467B]'
     case 'forest-subtle':
-      return 'bg-[#FFF7FA] hover:bg-[#FCE7F0] text-[#D9467B] border border-[#F3C4D7] focus:ring-[#D9467B]'
+      return 'bg-[#FFF7FA] dark:bg-[#251A21] hover:bg-[#FCE7F0] dark:hover:bg-[#2E1F29] text-[#D9467B] dark:text-[#F472B6] border border-[#F3C4D7] dark:border-[#4D3341] focus:ring-[#D9467B]'
     case 'danger':
       return 'bg-[#C2415D] hover:bg-[#A8324C] text-white shadow-xs focus:ring-[#C2415D]'
     default:

@@ -2,7 +2,7 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import BaseButton from '../common/BaseButton.vue'
 import { DOCUMENT_TYPES, DOCUMENT_STATUSES, DOCUMENT_PRIORITIES } from '../../db/database'
-import { getOffices } from '../../services/officeService'
+import { getOffices, generateCodeFromName } from '../../services/officeService'
 import { getFinanceRecords, formatCurrency } from '../../services/financeService'
 import { getWorkflowFolders } from '../../services/workflowService'
 import { X, FileText, AlertCircle, Landmark, Folder } from 'lucide-vue-next'
@@ -194,7 +194,6 @@ const getPriorityChipClass = (p) => {
   <div
     v-if="isOpen"
     class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs overflow-y-auto"
-    @click.self="emit('close')"
   >
     <div
       class="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-zinc-200 overflow-hidden text-left my-8"
@@ -303,7 +302,7 @@ const getPriorityChipClass = (p) => {
             >
               <option value="" disabled>Select originating office...</option>
               <option v-for="off in officesList" :key="off.id" :value="off.id">
-                [{{ off.code }}] {{ off.name }}
+                [{{ off.code || generateCodeFromName(off.name) }}] {{ off.name }}
               </option>
             </select>
             <p v-if="isEdit" class="text-[10px] text-zinc-400 mt-0.5">
@@ -322,7 +321,7 @@ const getPriorityChipClass = (p) => {
               :disabled="isEdit"
             >
               <option v-for="off in officesList" :key="off.id" :value="off.id">
-                [{{ off.code }}] {{ off.name }}
+                [{{ off.code || generateCodeFromName(off.name) }}] {{ off.name }}
               </option>
             </select>
             <p v-if="isEdit" class="text-[10px] text-zinc-400 mt-0.5">

@@ -7,6 +7,7 @@ import ReceiveModal from './ReceiveModal.vue'
 import CancelTransferModal from './CancelTransferModal.vue'
 import CorrectTransferModal from './CorrectTransferModal.vue'
 import DocumentModal from './DocumentModal.vue'
+import ScannerModal from '../scanner/ScannerModal.vue'
 import {
   getDocumentById,
   getMovementsForDocument,
@@ -20,6 +21,12 @@ import {
 } from '../../services/documentService'
 import { getWorkflowFolders, moveDocumentToFolder } from '../../services/workflowService'
 import { formatCurrency } from '../../services/financeService'
+import {
+  getEntityAttachments,
+  openAttachment,
+  deleteEntityAttachment,
+  attachFileBrowserMode
+} from '../../services/scannerService'
 import { DOCUMENT_STATUSES } from '../../db/database'
 import db from '../../db/database'
 import {
@@ -44,7 +51,8 @@ import {
   ExternalLink,
   ChevronRight,
   Folder,
-  Paperclip
+  Paperclip,
+  Scan
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -79,6 +87,28 @@ const selectedMovementForCorrection = ref(null)
 const isDesktop = computed(() => typeof window !== 'undefined' && Boolean(window.flowdeskAPI?.isDesktop))
 const attachmentsList = ref([])
 const isAttachingFile = ref(false)
+const isLoadingAttachments = ref(false)
+const isScannerModalOpen = ref(false)
+const fileInputRef = ref(null)
+
+const scannerActivityDesign = computed(() => {
+  if (docData.value?.relatedFinanceRecord) {
+    return docData.value.relatedFinanceRecord
+  }
+  if (docData.value?.relatedFinanceRecordId) {
+    return {
+      id: Number(docData.value.relatedFinanceRecordId),
+      activityDesign: docData.value.title
+    }
+  }
+  if (docData.value) {
+    return {
+      id: Number(docData.value.id),
+      activityDesign: docData.value.title
+    }
+  }
+  return null
+})
 
 const formatBytes = (bytes) => {
   if (!bytes || bytes === 0) return '0 B'
@@ -89,58 +119,143 @@ const formatBytes = (bytes) => {
 }
 
 const loadAttachments = async () => {
-  if (!props.documentId) return
-  if (isDesktop.value) {
-    try {
-      attachmentsList.value = await window.flowdeskAPI.files.getAttachments('document', props.documentId)
-    } catch (err) {
-      console.warn('Failed to load attachments:', err)
+  if (!props.documentId) {
+    attachmentsList.value = []
+    return
+  }
+
+  isLoadingAttachments.value = true
+  try {
+    const docId = Number(props.documentId)
+
+    // 1. Fetch attachments directly associated with this tracking document
+    const docAttachments = await getEntityAttachments('document', docId)
+    const taggedDocAtts = (docAttachments || []).map((att) => ({
+      ...att,
+      sourceType: 'document',
+      sourceLabel: 'Document Tracking Slip'
+    }))
+
+    // 2. Fetch attachments associated with the linked Activity Design / Finance Record
+    let finAttachments = []
+    let finId = docData.value?.relatedFinanceRecordId || docData.value?.relatedFinanceRecord?.id
+
+    // Fallback: If not explicitly linked by ID, lookup by matching Activity Design title
+    if (!finId && docData.value?.title) {
+      try {
+        const matchingFin = await db.financeRecords
+          .where('activityDesign')
+          .equals(docData.value.title)
+          .first()
+        if (matchingFin?.id) {
+          finId = matchingFin.id
+        }
+      } catch (e) {
+        console.warn('Failed to lookup matching finance record for attachments:', e)
+      }
     }
+
+    if (finId) {
+      const rawFinAtts = await getEntityAttachments('finance', Number(finId))
+      finAttachments = (rawFinAtts || []).map((att) => ({
+        ...att,
+        sourceType: 'finance',
+        sourceLabel: 'Activity Design Scanned Document'
+      }))
+    }
+
+    // 3. Deduplicate by attachment ID or relativePath and sort newest first
+    const seenKeys = new Set()
+    const merged = []
+    for (const att of [...finAttachments, ...taggedDocAtts]) {
+      const key = att.id ? `id_${att.id}` : `path_${att.relativePath}`
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key)
+        merged.push(att)
+      }
+    }
+
+    merged.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    attachmentsList.value = merged
+  } catch (err) {
+    console.warn('Failed to load attachments in DocumentDetailDrawer:', err)
+  } finally {
+    isLoadingAttachments.value = false
   }
 }
 
 const handleAddAttachment = async () => {
-  if (!isDesktop.value) {
-    alert('Desktop File Storage: Attachments are saved directly as physical files on your Windows computer in Electron desktop mode. Run FlowDesk via "npm run electron:dev" to attach and open local documents.')
-    return
+  if (isDesktop.value && window.flowdeskAPI?.files?.selectAttachment) {
+    try {
+      const selected = await window.flowdeskAPI.files.selectAttachment()
+      if (!selected) return
+
+      isAttachingFile.value = true
+      await window.flowdeskAPI.files.saveAttachment({
+        entityType: 'document',
+        entityId: Number(props.documentId),
+        sourceFilePath: selected.filePath
+      })
+      await loadAttachments()
+      emit('updated')
+    } catch (err) {
+      alert('Failed to save attachment: ' + err.message)
+    } finally {
+      isAttachingFile.value = false
+    }
+  } else {
+    // Browser mode fallback via file input
+    if (fileInputRef.value) {
+      fileInputRef.value.click()
+    }
   }
+}
 
+const handleBrowserFileUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  isAttachingFile.value = true
   try {
-    const selected = await window.flowdeskAPI.files.selectAttachment()
-    if (!selected) return
-
-    isAttachingFile.value = true
-    await window.flowdeskAPI.files.saveAttachment({
+    await attachFileBrowserMode({
       entityType: 'document',
-      entityId: props.documentId,
-      sourceFilePath: selected.filePath
+      entityId: Number(props.documentId),
+      file,
+      notes: 'Attached via FlowDesk Document Tracker'
     })
     await loadAttachments()
+    emit('updated')
   } catch (err) {
-    alert('Failed to save attachment: ' + err.message)
+    alert('Failed to attach file in browser mode: ' + err.message)
   } finally {
     isAttachingFile.value = false
+    if (event.target) event.target.value = ''
   }
 }
 
 const handleOpenAttachment = async (att) => {
-  if (!isDesktop.value) return
   try {
-    await window.flowdeskAPI.files.openAttachment(att.relativePath)
+    await openAttachment(att)
   } catch (err) {
     alert('Error opening attachment: ' + err.message)
   }
 }
 
 const handleDeleteAttachment = async (att) => {
-  if (!isDesktop.value) return
-  if (!confirm(`Delete attachment "${att.fileName}"? This will remove the file from your computer.`)) return
+  const label = att.sourceType === 'finance' ? 'Activity Design scanned document' : 'attachment'
+  if (!confirm(`Delete ${label} "${att.fileName}"? This will remove the file from your computer.`)) return
   try {
-    await window.flowdeskAPI.files.deleteAttachment(att.id)
+    await deleteEntityAttachment(att.id)
     await loadAttachments()
+    emit('updated')
   } catch (err) {
     alert('Error deleting attachment: ' + err.message)
   }
+}
+
+const handleScanAttached = async () => {
+  await loadAttachments()
+  emit('updated')
 }
 
 const loadFullDocument = async () => {
@@ -275,7 +390,6 @@ const getMovementStatusColor = (st) => {
   <div
     v-if="isOpen"
     class="fixed inset-0 z-50 overflow-hidden bg-black/40 backdrop-blur-xs flex justify-end"
-    @click.self="emit('close')"
   >
     <div
       class="w-full max-w-xl bg-white h-full shadow-2xl flex flex-col justify-between overflow-hidden animate-slide-left border-l border-zinc-200"
@@ -395,20 +509,21 @@ const getMovementStatusColor = (st) => {
         </div>
 
         <!-- Critical Transfer / Receive Action Bar -->
-        <div class="p-3 bg-white rounded-xl border border-zinc-200 shadow-2xs space-y-2">
-          <div class="text-[11px] font-semibold text-zinc-700 flex items-center justify-between">
+        <div class="p-3 bg-white dark:bg-[#1A1719] rounded-xl border border-zinc-200 dark:border-[#2D252B] shadow-2xs space-y-2">
+          <div class="text-[11px] font-semibold text-zinc-700 dark:text-[#DDD2D9] flex items-center justify-between">
             <span>Physical Document Workflow Action:</span>
-            <span v-if="docData.status === 'in_transit'" class="text-sky-700 font-bold text-[10px] uppercase">
+            <span v-if="docData.status === 'in_transit'" class="text-sky-700 dark:text-sky-400 font-bold text-[10px] uppercase">
               • Awaiting Physical Receipt
             </span>
           </div>
 
-          <div class="flex items-center gap-2 flex-wrap">
+          <div class="flex items-center justify-between gap-2 overflow-x-auto pb-0.5">
             <!-- If IN TRANSIT: show Confirm Receipt and Cancel Transfer -->
             <template v-if="docData.status === 'in_transit'">
               <BaseButton
                 variant="primary"
                 size="sm"
+                class="shrink-0 whitespace-nowrap"
                 @click="isReceiveModalOpen = true"
               >
                 <CheckCircle2 class="w-3.5 h-3.5 mr-1.5 text-rose-200" />
@@ -418,6 +533,7 @@ const getMovementStatusColor = (st) => {
               <BaseButton
                 variant="danger"
                 size="sm"
+                class="shrink-0 whitespace-nowrap"
                 @click="isCancelModalOpen = true"
               >
                 <Undo2 class="w-3.5 h-3.5 mr-1.5" />
@@ -430,6 +546,7 @@ const getMovementStatusColor = (st) => {
               <BaseButton
                 variant="primary"
                 size="sm"
+                class="shrink-0 whitespace-nowrap"
                 @click="isTransferModalOpen = true"
               >
                 <Send class="w-3.5 h-3.5 mr-1.5 text-rose-200" />
@@ -437,37 +554,19 @@ const getMovementStatusColor = (st) => {
               </BaseButton>
             </template>
 
-            <!-- Workflow Folder & Status Dropdowns -->
-            <div class="ml-auto flex items-center gap-2 flex-wrap">
-              <!-- Folder Quick Switch -->
-              <div class="flex items-center gap-1.5">
-                <span class="text-[11px] text-zinc-500">Folder:</span>
-                <select
-                  :value="docData.workflowFolderId"
-                  @change="handleFolderChange($event.target.value)"
-                  class="px-2 py-1 bg-zinc-50 border border-zinc-200 rounded text-xs text-zinc-800 focus:outline-none focus:ring-1 focus:ring-forest-600 cursor-pointer font-medium"
-                  :disabled="docData.isArchived"
-                >
-                  <option v-for="f in workflowFoldersList" :key="f.id" :value="f.id">
-                    📁 {{ f.name }}
-                  </option>
-                </select>
-              </div>
-
-              <!-- Status Dropdown -->
-              <div class="flex items-center gap-1.5">
-                <span class="text-[11px] text-zinc-500">Status:</span>
-                <select
-                  :value="docData.status"
-                  @change="handleStatusChange($event.target.value)"
-                  class="px-2 py-1 bg-zinc-50 border border-zinc-200 rounded text-xs text-zinc-800 focus:outline-none focus:ring-1 focus:ring-forest-600 cursor-pointer"
-                  :disabled="docData.status === 'in_transit' || docData.isArchived"
-                >
-                  <option v-for="st in DOCUMENT_STATUSES" :key="st.value" :value="st.value">
-                    {{ st.label }}
-                  </option>
-                </select>
-              </div>
+            <!-- Workflow Status Dropdown -->
+            <div class="ml-auto flex items-center gap-1.5 shrink-0">
+              <span class="text-[11px] text-zinc-500 dark:text-[#BCAEBA] whitespace-nowrap font-medium">Status:</span>
+              <select
+                :value="docData.status"
+                @change="handleStatusChange($event.target.value)"
+                class="px-2 py-1 bg-zinc-50 dark:bg-[#251A21] border border-zinc-200 dark:border-[#4D3341] rounded-md text-xs text-zinc-800 dark:text-[#F5EDF1] focus:outline-none focus:ring-1 focus:ring-forest-600 cursor-pointer max-w-[130px] sm:max-w-[150px] truncate"
+                :disabled="docData.status === 'in_transit' || docData.isArchived"
+              >
+                <option v-for="st in DOCUMENT_STATUSES" :key="st.value" :value="st.value" class="dark:bg-[#1A1719] dark:text-[#F5EDF1]">
+                  {{ st.label }}
+                </option>
+              </select>
             </div>
           </div>
         </div>
@@ -534,23 +633,31 @@ const getMovementStatusColor = (st) => {
             <span>Oldest &rarr; Latest</span>
           </div>
 
-          <div class="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-zinc-200">
+          <div class="space-y-0">
             <div
               v-for="(move, idx) in movementsList"
               :key="move.id"
-              class="relative flex flex-col gap-1.5 text-xs bg-zinc-50/70 p-3 rounded-xl border border-zinc-200/80"
+              class="flex items-start gap-3 group relative"
             >
-              <!-- Timeline Node Bullet -->
-              <span
-                :class="[
-                  'absolute -left-6 top-3 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[10px] shadow-2xs font-bold text-white',
-                  move.status === 'in_transit' ? 'bg-sky-600' : (move.status === 'received' ? 'bg-emerald-600' : 'bg-amber-600')
-                ]"
-              >
-                {{ idx + 1 }}
-              </span>
+              <!-- Timeline Node Bullet & Centered Vertical Line -->
+              <div class="flex flex-col items-center self-stretch shrink-0 w-7">
+                <span
+                  :class="[
+                    'relative z-10 w-6 h-6 rounded-full ring-4 ring-white flex items-center justify-center text-[10px] shadow-xs font-bold text-white shrink-0',
+                    move.status === 'in_transit' ? 'bg-sky-600' : (move.status === 'received' ? 'bg-emerald-600' : 'bg-amber-600')
+                  ]"
+                >
+                  {{ idx + 1 }}
+                </span>
+                <div
+                  v-if="idx < movementsList.length - 1"
+                  class="w-0.5 grow bg-zinc-200 my-1 rounded-full"
+                />
+              </div>
 
-              <!-- Route Header & Status -->
+              <div class="flex-1 min-w-0 pb-4">
+                <div class="flex flex-col gap-1.5 text-xs bg-zinc-50/70 p-3 rounded-xl border border-zinc-200/80">
+                  <!-- Route Header & Status -->
               <div class="flex items-center justify-between gap-2 flex-wrap">
                 <div class="font-semibold text-zinc-900 flex items-center gap-1.5">
                   <span>{{ move.fromOfficeName }}</span>
@@ -601,6 +708,8 @@ const getMovementStatusColor = (st) => {
               <!-- Correction Reason Banner if corrected -->
               <div v-if="move.status === 'corrected'" class="p-2 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[11px]">
                 <strong>Audited Correction:</strong> {{ move.correctionReason }} (By: {{ move.correctedBy }})
+              </div>
+                </div>
               </div>
             </div>
           </div>
@@ -734,39 +843,86 @@ const getMovementStatusColor = (st) => {
 
         <!-- TAB 4: Attachments & Scans -->
         <div v-if="activeTab === 'attachments'" class="space-y-4">
-          <div class="flex items-center justify-between text-xs">
-            <span class="text-zinc-500 text-[11px]">Physical scans, transmittal PDFs, and documents</span>
-            <button
-              @click="handleAddAttachment"
-              type="button"
-              :disabled="isAttachingFile"
-              class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-white bg-forest-800 hover:bg-forest-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <Paperclip class="w-3.5 h-3.5" />
-              <span>{{ isAttachingFile ? 'Adding...' : 'Attach File' }}</span>
-            </button>
+          <!-- Hidden browser file input for non-desktop environments -->
+          <input
+            ref="fileInputRef"
+            type="file"
+            class="hidden"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.tif,.tiff"
+            @change="handleBrowserFileUpload"
+          />
+
+          <div class="flex items-center justify-between text-xs flex-wrap gap-2">
+            <div>
+              <span class="text-zinc-700 dark:text-[#F5EDF1] font-semibold text-xs block">Document Files & Scans</span>
+              <span class="text-zinc-400 dark:text-[#806B76] text-[11px]">Physical scans, transmittal PDFs, and documents</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                @click="isScannerModalOpen = true"
+                type="button"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[#D9467B] dark:text-[#F294B7] bg-[#FFF0F5] dark:bg-[#2D1F28] hover:bg-[#FCE7F0] dark:hover:bg-[#3D2534] border border-[#F3C4D7] dark:border-[#4A2D3C] rounded-lg transition-colors cursor-pointer shadow-2xs"
+                title="Scan document from physical hardware scanner"
+              >
+                <Scan class="w-3.5 h-3.5 text-[#D9467B] dark:text-[#F294B7]" />
+                <span>Scan Document</span>
+              </button>
+              <button
+                @click="handleAddAttachment"
+                type="button"
+                :disabled="isAttachingFile"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-white bg-forest-800 hover:bg-forest-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50 shadow-2xs"
+              >
+                <Paperclip class="w-3.5 h-3.5" />
+                <span>{{ isAttachingFile ? 'Adding...' : 'Attach File' }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Loading state -->
+          <div v-if="isLoadingAttachments" class="p-6 text-center text-zinc-400 dark:text-[#806B76] text-xs space-y-2">
+            <div class="animate-spin w-5 h-5 border-2 border-forest-700 dark:border-[#F294B7] border-t-transparent rounded-full mx-auto"></div>
+            <p>Loading attached documents and scans...</p>
           </div>
 
           <!-- Attachments list -->
-          <div v-if="attachmentsList.length > 0" class="space-y-2">
+          <div v-else-if="attachmentsList.length > 0" class="space-y-2">
             <div
               v-for="att in attachmentsList"
               :key="att.id"
-              class="p-3 rounded-xl bg-white border border-zinc-200 flex items-center justify-between text-xs hover:border-zinc-300 transition-colors shadow-2xs"
+              class="p-3 rounded-xl bg-white dark:bg-[#201A1E] border border-zinc-200 dark:border-[#2D252B] flex items-center justify-between text-xs hover:border-zinc-300 dark:hover:border-[#3D2D38] transition-colors shadow-2xs"
             >
               <div class="flex items-center gap-2.5 min-w-0 pr-2">
-                <div class="p-2 rounded-lg bg-zinc-100 text-zinc-600 shrink-0">
-                  <FileText class="w-4 h-4 text-forest-700" />
+                <div class="p-2 rounded-lg bg-zinc-100 dark:bg-[#2A2228] text-zinc-600 dark:text-[#DDD2D9] shrink-0">
+                  <FileText class="w-4 h-4 text-forest-700 dark:text-[#F294B7]" />
                 </div>
                 <div class="min-w-0">
-                  <div class="font-medium text-zinc-800 truncate" :title="att.fileName">
-                    {{ att.fileName }}
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-semibold text-zinc-800 dark:text-[#F5EDF1] truncate" :title="att.fileName">
+                      {{ att.fileName }}
+                    </span>
+                    <span
+                      v-if="att.sourceType === 'finance'"
+                      class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 shrink-0"
+                      title="Attached to linked Activity Design"
+                    >
+                      Activity Design Scan
+                    </span>
+                    <span
+                      v-else
+                      class="px-1.5 py-0.2 rounded text-[10px] font-medium bg-zinc-100 dark:bg-[#251F23] text-zinc-600 dark:text-[#DDD2D9] border border-zinc-200 dark:border-[#3D2D38] shrink-0"
+                    >
+                      Document Attachment
+                    </span>
                   </div>
-                  <div class="text-[10px] text-zinc-400 flex items-center gap-2 mt-0.5">
+                  <div class="text-[10px] text-zinc-400 dark:text-[#806B76] flex items-center gap-2 mt-0.5 flex-wrap">
                     <span>{{ formatBytes(att.fileSize) }}</span>
                     <span>•</span>
                     <span>{{ formatDocDate(att.createdAt) }}</span>
-                    <span v-if="att.existsOnDisk === false" class="text-amber-600 font-semibold">(File missing on disk)</span>
+                    <span v-if="att.notes" class="text-zinc-500 dark:text-[#BCAEBA] truncate max-w-xs" :title="att.notes">
+                      • {{ att.notes }}
+                    </span>
+                    <span v-if="att.existsOnDisk === false" class="text-amber-600 dark:text-amber-400 font-semibold">(File missing on disk)</span>
                   </div>
                 </div>
               </div>
@@ -775,15 +931,15 @@ const getMovementStatusColor = (st) => {
                 <button
                   @click="handleOpenAttachment(att)"
                   type="button"
-                  class="p-1.5 rounded-lg text-forest-800 hover:bg-forest-50 transition-colors cursor-pointer"
-                  title="Open in default Windows application"
+                  class="p-1.5 rounded-lg text-forest-800 dark:text-[#F294B7] hover:bg-forest-50 dark:hover:bg-forest-950/40 transition-colors cursor-pointer"
+                  title="Open file in Windows default application"
                 >
                   <ExternalLink class="w-4 h-4" />
                 </button>
                 <button
                   @click="handleDeleteAttachment(att)"
                   type="button"
-                  class="p-1.5 rounded-lg text-zinc-400 hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
+                  class="p-1.5 rounded-lg text-zinc-400 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
                   title="Delete attachment"
                 >
                   <Trash2 class="w-4 h-4" />
@@ -793,20 +949,30 @@ const getMovementStatusColor = (st) => {
           </div>
 
           <!-- Empty State -->
-          <div v-else class="p-6 rounded-xl border border-dashed border-zinc-200 text-center bg-zinc-50/50">
-            <Paperclip class="w-8 h-8 text-zinc-300 mx-auto mb-2" />
-            <p class="text-xs font-semibold text-zinc-700">No attachments yet</p>
-            <p class="text-[11px] text-zinc-400 max-w-xs mx-auto mt-1 mb-3">
+          <div v-else class="p-6 rounded-xl border border-dashed border-zinc-200 dark:border-[#2D252B] text-center bg-zinc-50/50 dark:bg-[#201A1E]/50">
+            <Paperclip class="w-8 h-8 text-zinc-300 dark:text-[#4A3D46] mx-auto mb-2" />
+            <p class="text-xs font-semibold text-zinc-700 dark:text-[#F5EDF1]">No attachments yet</p>
+            <p class="text-[11px] text-zinc-400 dark:text-[#806B76] max-w-xs mx-auto mt-1 mb-3">
               Store transmittal sheets, signed memos, receipts, or PDF scans directly in the FlowDesk attachments folder.
             </p>
-            <button
-              @click="handleAddAttachment"
-              type="button"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-forest-800 bg-forest-50 hover:bg-forest-100 rounded-lg border border-forest-200 transition-colors cursor-pointer"
-            >
-              <Paperclip class="w-3.5 h-3.5" />
-              <span>Select File to Attach</span>
-            </button>
+            <div class="flex items-center justify-center gap-2">
+              <button
+                @click="isScannerModalOpen = true"
+                type="button"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#D9467B] dark:text-[#F294B7] bg-[#FFF0F5] dark:bg-[#2D1F28] hover:bg-[#FCE7F0] dark:hover:bg-[#3D2534] rounded-lg border border-[#F3C4D7] dark:border-[#4A2D3C] transition-colors cursor-pointer"
+              >
+                <Scan class="w-3.5 h-3.5 text-[#D9467B] dark:text-[#F294B7]" />
+                <span>Scan Document</span>
+              </button>
+              <button
+                @click="handleAddAttachment"
+                type="button"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-forest-800 dark:text-[#DDD2D9] bg-forest-50 dark:bg-[#251F23] hover:bg-forest-100 dark:hover:bg-[#2D232A] rounded-lg border border-forest-200 dark:border-[#3D2D38] transition-colors cursor-pointer"
+              >
+                <Paperclip class="w-3.5 h-3.5" />
+                <span>Select File to Attach</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -902,6 +1068,14 @@ const getMovementStatusColor = (st) => {
       :document-to-edit="docData"
       @close="isEditModalOpen = false"
       @saved="async () => { isEditModalOpen = false; await handleActionComplete(); }"
+    />
+
+    <!-- Hardware Scanner Modal for Document Scanning -->
+    <ScannerModal
+      :isOpen="isScannerModalOpen"
+      :activityDesign="scannerActivityDesign"
+      @close="isScannerModalOpen = false"
+      @attached="handleScanAttached"
     />
   </div>
 </template>

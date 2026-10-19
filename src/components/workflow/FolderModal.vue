@@ -1,7 +1,8 @@
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue'
 import BaseButton from '../common/BaseButton.vue'
-import { getOffices } from '../../services/officeService'
+import { getOffices, generateCodeFromName } from '../../services/officeService'
+import { createWorkflowFolder, updateWorkflowFolder } from '../../services/workflowService'
 import { FOLDER_BEHAVIORS } from '../../db/database'
 import { Folder, X, AlertCircle, Building2, Check } from 'lucide-vue-next'
 
@@ -103,11 +104,14 @@ const handleSubmit = async () => {
       isCompletedFolder: isCompletedFolder.value
     }
 
-    emit('saved', {
-      isEdit: isEdit.value,
-      id: props.folderToEdit?.id,
-      data: payload
-    })
+    if (isEdit.value && props.folderToEdit?.id) {
+      await updateWorkflowFolder(props.folderToEdit.id, payload)
+    } else {
+      await createWorkflowFolder(payload)
+    }
+
+    emit('saved')
+    emit('close')
   } catch (err) {
     errorMessage.value = err.message || 'Failed to save routing folder.'
   } finally {
@@ -120,7 +124,6 @@ const handleSubmit = async () => {
   <div
     v-if="isOpen"
     class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs overflow-y-auto"
-    @click.self="emit('close')"
   >
     <div
       class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-zinc-200 overflow-hidden text-left my-8"
@@ -236,7 +239,7 @@ const handleSubmit = async () => {
           >
             <option value="" disabled>Select government office...</option>
             <option v-for="off in officesList" :key="off.id" :value="off.id">
-              [{{ off.code }}] {{ off.name }}
+              [{{ off.code || generateCodeFromName(off.name) }}] {{ off.name }}
             </option>
           </select>
           <p class="text-[10px] text-zinc-400 mt-1">

@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   getFinanceRecords,
   createFinanceRecord,
@@ -120,7 +121,8 @@ const handleMarkAllBudgetStatus = async (record, newStatus) => {
 }
 
 // Filters
-const searchQuery = ref('')
+const route = useRoute()
+const searchQuery = ref(route.query.search ? String(route.query.search) : '')
 const selectedPaymentStatus = ref('all')
 const selectedAdStatus = ref('all')
 const selectedChargedTo = ref('all')
@@ -180,11 +182,25 @@ const loadRecords = async () => {
 }
 
 onMounted(async () => {
+  if (route.query.search) {
+    searchQuery.value = String(route.query.search)
+  }
   try {
     await clearSampleRecords()
   } catch {}
   loadRecords()
 })
+
+watch(
+  () => route.query.search,
+  (newSearch) => {
+    if (newSearch !== undefined) {
+      searchQuery.value = String(newSearch || '')
+      currentPage.value = 1
+      loadRecords()
+    }
+  }
+)
 
 // Trigger search/filter reload
 const handleFilterChange = () => {
@@ -595,7 +611,7 @@ const getAdBadgeVariant = (status) => {
               <th class="py-3 px-3.5 text-center">8. Internal Arrangement?</th>
               <th class="py-3 px-3.5">Status of Payment</th>
               <th class="py-3 px-3.5">Status of AD</th>
-              <th class="py-3 px-3.5 text-right sticky right-0 bg-zinc-50/90 backdrop-blur-xs shadow-xs">
+              <th class="py-3 px-3.5 text-right sticky right-0 bg-zinc-50/90 dark:bg-[#211D20] backdrop-blur-xs shadow-xs">
                 Actions
               </th>
             </tr>
@@ -799,7 +815,7 @@ const getAdBadgeVariant = (status) => {
                 </td>
 
                 <!-- Actions (Sticky Right) -->
-                <td class="py-3 px-3.5 text-right sticky right-0 bg-white group-hover:bg-zinc-50/90 shadow-xs">
+                <td class="py-3 px-3.5 text-right sticky right-0 bg-white dark:bg-[#1A1719] group-hover:bg-zinc-50/90 dark:group-hover:bg-[#251F23] shadow-xs">
                   <div class="flex items-center justify-end gap-1">
                     <!-- View Details Button -->
                     <button
@@ -851,12 +867,12 @@ const getAdBadgeVariant = (status) => {
               <!-- Subtable Row: Budget Utilization Breakdown -->
               <tr
                 v-if="isRowExpanded(item.id) && item.budgetEntries && item.budgetEntries.length > 0"
-                class="bg-[#FFF7FA] transition-all"
+                class="bg-[#FFF7FA] dark:bg-[#161315] transition-all"
               >
-                <td colspan="12" class="px-5 py-4 border-b border-rose-200/90 bg-[#FFF7FA]">
-                  <div class="rounded-xl border border-rose-200 bg-white overflow-hidden shadow-xs">
+                <td colspan="12" class="px-5 py-4 border-b border-rose-200/90 dark:border-rose-900/40 bg-[#FFF7FA] dark:bg-[#161315]">
+                  <div class="rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#1A1719] overflow-hidden shadow-xs max-w-4xl">
                     <!-- Subtable Toolbar & Header -->
-                    <div class="px-4 py-2.5 bg-gradient-to-r from-[#FFF5F8] to-[#FCE7F0] border-b border-rose-100 flex flex-wrap items-center justify-between gap-3">
+                    <div class="px-4 py-2.5 bg-gradient-to-r from-[#FFF5F8] to-[#FCE7F0] dark:from-[#251720] dark:to-[#2B1B26] border-b border-rose-100 dark:border-rose-900/40 flex flex-wrap items-center justify-between gap-3">
                       <div class="flex items-center gap-2.5">
                         <div class="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 shadow-2xs">
                           <Coins class="w-4 h-4 text-rose-600" />
@@ -922,12 +938,12 @@ const getAdBadgeVariant = (status) => {
                       <table class="w-full text-left text-xs whitespace-nowrap">
                         <thead>
                           <tr class="bg-zinc-50 border-b border-zinc-200/80 text-zinc-600 font-semibold text-[10px] tracking-wide uppercase">
-                            <th class="py-2.5 px-4 w-12 text-center">#</th>
-                            <th class="py-2.5 px-4">Budget Utilization</th>
-                            <th class="py-2.5 px-4 text-right w-44">Amount</th>
-                            <th class="py-2.5 px-4 w-48">Supplier</th>
-                            <th class="py-2.5 px-4 text-center w-36">Status</th>
-                            <th class="py-2.5 px-4 text-center w-48">Action</th>
+                            <th class="py-2.5 px-3 w-10 text-center">#</th>
+                            <th class="py-2.5 px-3 w-60 min-w-[180px] max-w-[260px]">Budget Utilization</th>
+                            <th class="py-2.5 px-3 text-right w-36">Amount</th>
+                            <th class="py-2.5 px-3 w-40 max-w-[180px]">Supplier</th>
+                            <th class="py-2.5 px-3 text-center w-28">Status</th>
+                            <th class="py-2.5 px-3 text-center w-36">Action</th>
                           </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-100">
@@ -937,31 +953,31 @@ const getAdBadgeVariant = (status) => {
                             class="hover:bg-rose-50/40 transition-colors"
                           >
                             <!-- # -->
-                            <td class="py-2.5 px-4 text-center text-zinc-400 font-mono text-[11px]">
+                            <td class="py-2.5 px-3 text-center text-zinc-400 font-mono text-[11px]">
                               {{ bIdx + 1 }}
                             </td>
 
                             <!-- Budget Breakdown Item Name -->
-                            <td class="py-2.5 px-4 font-medium text-zinc-900">
+                            <td class="py-2.5 px-3 font-medium text-zinc-900 max-w-[260px]">
                               <div class="flex items-center gap-2">
-                                <span class="w-1.5 h-1.5 rounded-full" :class="bEntry.status === 'Paid' ? 'bg-emerald-500' : 'bg-rose-400'"></span>
-                                <span>{{ bEntry.name }}</span>
+                                <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="bEntry.status === 'Paid' ? 'bg-emerald-500' : 'bg-rose-400'"></span>
+                                <span class="truncate" :title="bEntry.name">{{ bEntry.name }}</span>
                               </div>
                             </td>
 
                             <!-- Amount -->
-                            <td class="py-2.5 px-4 text-right font-mono font-bold text-[#3D2934] text-xs">
+                            <td class="py-2.5 px-3 text-right font-mono font-bold text-[#3D2934] text-xs">
                               {{ formatCurrency(bEntry.amount) }}
                             </td>
 
                             <!-- Supplier -->
-                            <td class="py-2.5 px-4 text-zinc-700 max-w-[200px] truncate" :title="bEntry.supplier || ''">
+                            <td class="py-2.5 px-3 text-zinc-700 max-w-[180px] truncate" :title="bEntry.supplier || ''">
                               <span v-if="bEntry.supplier" class="font-medium text-zinc-800">{{ bEntry.supplier }}</span>
                               <span v-else class="text-zinc-400">—</span>
                             </td>
 
                             <!-- Status Badge -->
-                            <td class="py-2.5 px-4 text-center">
+                            <td class="py-2.5 px-3 text-center">
                               <span
                                 :class="[
                                   'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border shadow-2xs',
@@ -979,7 +995,7 @@ const getAdBadgeVariant = (status) => {
                             </td>
 
                             <!-- Action Column: Update Status -->
-                            <td class="py-2.5 px-4 text-center">
+                            <td class="py-2.5 px-3 text-center">
                               <div class="inline-flex items-center justify-center gap-1.5">
                                 <!-- If Unpaid, button to mark as Paid -->
                                 <button
@@ -1012,13 +1028,13 @@ const getAdBadgeVariant = (status) => {
                         </tbody>
                         <tfoot class="bg-rose-50/30 border-t border-rose-100 text-xs font-semibold">
                           <tr>
-                            <td colspan="2" class="py-2.5 px-4 text-zinc-600">
+                            <td colspan="2" class="py-2.5 px-3 text-zinc-600">
                               Total Budget Breakdown Sum ({{ item.budgetEntries.length }} items)
                             </td>
-                            <td class="py-2.5 px-4 text-right font-mono font-bold text-rose-950">
+                            <td class="py-2.5 px-3 text-right font-mono font-bold text-rose-950">
                               {{ formatCurrency(item.adAmount) }}
                             </td>
-                            <td colspan="3" class="py-2.5 px-4 text-center text-[11px] text-zinc-500 font-normal">
+                            <td colspan="3" class="py-2.5 px-3 text-center text-[11px] text-zinc-500 font-normal">
                               {{ item.budgetEntries.filter(e => e.status === 'Paid').length }} Paid • {{ item.budgetEntries.filter(e => e.status !== 'Paid').length }} Unpaid
                             </td>
                           </tr>
@@ -1117,7 +1133,6 @@ const getAdBadgeVariant = (status) => {
     <div
       v-if="isDeleteConfirmOpen && recordToDelete"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 backdrop-blur-xs"
-      @click.self="isDeleteConfirmOpen = false"
       role="alertdialog"
     >
       <div class="bg-white rounded-xl shadow-xl border border-zinc-200 p-5 w-full max-w-sm space-y-4 animate-in fade-in duration-150">

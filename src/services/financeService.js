@@ -658,7 +658,7 @@ export async function getFinanceSummaryMetrics() {
       }
 
       // AD Status analysis
-      if (record.adStatus === 'Pending AD' || record.adStatus === 'AD Under Review' || record.adStatus === 'For Compliance') {
+      if (record.adStatus === 'Pending' || record.adStatus === 'For Approval' || record.adStatus === 'Pending AD' || record.adStatus === 'AD Under Review' || record.adStatus === 'For Compliance') {
         awaitingAdCount++
       }
 

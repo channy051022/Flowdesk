@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import BaseCard from '../components/common/BaseCard.vue'
 import BaseBadge from '../components/common/BaseBadge.vue'
 import BaseButton from '../components/common/BaseButton.vue'
@@ -67,7 +68,8 @@ const summaryMetrics = ref({
 const isLoading = ref(true)
 
 // Filters & Search
-const searchQuery = ref('')
+const route = useRoute()
+const searchQuery = ref(route.query.search ? String(route.query.search) : '')
 const selectedQuickFilter = ref('all') // 'all', 'my_office', 'in_transit', 'pending_action', 'completed', 'archived'
 const selectedStatus = ref('all')
 const selectedFolder = ref('all')
@@ -141,9 +143,21 @@ const loadData = async () => {
 }
 
 onMounted(async () => {
+  if (route.query.search) {
+    searchQuery.value = String(route.query.search)
+  }
   await clearSampleDocuments()
   await loadData()
 })
+
+watch(
+  () => route.query.search,
+  (newSearch) => {
+    if (newSearch !== undefined) {
+      searchQuery.value = String(newSearch || '')
+    }
+  }
+)
 
 // Debounced / watcher for filters
 watch(
@@ -286,7 +300,7 @@ const getPriorityBadgeVariant = (p) => {
 <template>
   <div class="space-y-6">
     <!-- Notice Banner -->
-    <div class="bg-forest-50/70 border border-forest-200/70 rounded-xl p-3.5 flex items-start justify-between gap-3 text-xs text-forest-900 shadow-2xs">
+    <!-- <div class="bg-forest-50/70 border border-forest-200/70 rounded-xl p-3.5 flex items-start justify-between gap-3 text-xs text-forest-900 shadow-2xs">
       <div class="flex items-start gap-3">
         <Info class="w-4 h-4 text-forest-700 shrink-0 mt-0.5" />
         <div>
@@ -294,15 +308,15 @@ const getPriorityBadgeVariant = (p) => {
           Track incoming paper files, assign permanent tracking slips, and monitor physical custody transfers between government divisions. All movement audits persist offline in IndexedDB.
         </div>
       </div>
-    </div>
+    </div> -->
 
     <!-- Header & Action -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <h2 class="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
+        <h2 class="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-[#F5EDF1] tracking-tight">
           Document Tracker
         </h2>
-        <p class="text-xs sm:text-sm text-zinc-500 mt-0.5">
+        <p class="text-xs sm:text-sm text-zinc-500 dark:text-[#BCAEBA] mt-0.5">
           Register, locate, and monitor documents as they move between offices.
         </p>
       </div>
@@ -310,9 +324,9 @@ const getPriorityBadgeVariant = (p) => {
       <div class="flex items-center gap-2">
         <router-link
           to="/workflow"
-          class="px-2.5 py-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-medium inline-flex items-center gap-1.5 shadow-2xs transition-colors"
+          class="px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-[#3D2D38] bg-white dark:bg-[#201A1E] hover:bg-zinc-50 dark:hover:bg-[#2A2228] text-zinc-700 dark:text-[#DDD2D9] text-xs font-medium inline-flex items-center gap-1.5 shadow-2xs transition-colors"
         >
-          <Kanban class="w-3.5 h-3.5 text-forest-700" />
+          <Kanban class="w-3.5 h-3.5 text-forest-700 dark:text-[#F294B7]" />
           <span>Workflow Board</span>
         </router-link>
 
@@ -398,7 +412,7 @@ const getPriorityBadgeVariant = (p) => {
           'px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap cursor-pointer h-7 leading-none inline-flex items-center',
           selectedQuickFilter === tab.id
             ? 'bg-forest-800 text-white shadow-xs'
-            : 'text-zinc-600 hover:text-zinc-900 bg-white border border-zinc-200/80 hover:bg-zinc-50'
+            : 'text-zinc-600 dark:text-[#DDD2D9] hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-[#201A1E] border border-zinc-200/80 dark:border-[#2D252B] hover:bg-zinc-50 dark:hover:bg-[#2A2228]'
         ]"
       >
         {{ tab.label }}
@@ -406,16 +420,16 @@ const getPriorityBadgeVariant = (p) => {
     </div>
 
     <!-- Toolbar: Search + Dropdown Filters -->
-    <div class="bg-white rounded-xl border border-zinc-200/80 p-3 shadow-2xs space-y-3">
+    <div class="bg-white dark:bg-[#1A1719] rounded-xl border border-zinc-200/80 dark:border-[#2D252B] p-3 shadow-2xs space-y-3">
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <!-- Search Input -->
         <div class="relative flex-1">
-          <Search class="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search class="w-3.5 h-3.5 text-zinc-400 dark:text-[#806B76] absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             v-model="searchQuery"
             type="text"
             placeholder="Search tracking #, title, reference #, sender, or office..."
-            class="w-full pl-8 pr-3 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-forest-600"
+            class="w-full pl-8 pr-3 py-1.5 text-xs bg-zinc-50 dark:bg-[#251F23] border border-zinc-200 dark:border-[#3D2D38] rounded-lg text-zinc-800 dark:text-[#F5EDF1] placeholder:text-zinc-400 dark:placeholder-[#806B76] focus:outline-none focus:ring-2 focus:ring-forest-600 dark:focus:ring-[#F294B7]"
           />
         </div>
 
@@ -424,7 +438,7 @@ const getPriorityBadgeVariant = (p) => {
           v-if="searchQuery || selectedStatus !== 'all' || selectedFolder !== 'all' || selectedOffice !== 'all' || selectedType !== 'all' || filterDateFrom || filterDateTo"
           @click="resetFilters"
           type="button"
-          class="text-xs text-zinc-500 hover:text-forest-900 underline shrink-0 cursor-pointer"
+          class="text-xs text-zinc-500 dark:text-[#BCAEBA] hover:text-forest-900 dark:hover:text-[#F294B7] underline shrink-0 cursor-pointer"
         >
           Reset Filters
         </button>
@@ -436,7 +450,7 @@ const getPriorityBadgeVariant = (p) => {
         <div>
           <select
             v-model="selectedFolder"
-            class="w-full px-2 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-700 text-xs focus:outline-none focus:ring-1 focus:ring-forest-600 cursor-pointer"
+            class="w-full px-2 py-1.5 bg-white dark:bg-[#251F23] border border-zinc-200 dark:border-[#3D2D38] rounded-lg text-zinc-700 dark:text-[#DDD2D9] text-xs focus:outline-none focus:ring-1 focus:ring-forest-600 dark:focus:ring-[#F294B7] cursor-pointer"
           >
             <option value="all">All Routing Folders</option>
             <option v-for="folder in workflowFoldersList" :key="folder.id" :value="folder.id">
@@ -449,7 +463,7 @@ const getPriorityBadgeVariant = (p) => {
         <div>
           <select
             v-model="selectedStatus"
-            class="w-full px-2 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-700 text-xs focus:outline-none focus:ring-1 focus:ring-forest-600 cursor-pointer"
+            class="w-full px-2 py-1.5 bg-white dark:bg-[#251F23] border border-zinc-200 dark:border-[#3D2D38] rounded-lg text-zinc-700 dark:text-[#DDD2D9] text-xs focus:outline-none focus:ring-1 focus:ring-forest-600 dark:focus:ring-[#F294B7] cursor-pointer"
           >
             <option value="all">All Statuses</option>
             <option v-for="st in DOCUMENT_STATUSES" :key="st.value" :value="st.value">
@@ -462,7 +476,7 @@ const getPriorityBadgeVariant = (p) => {
         <div>
           <select
             v-model="selectedOffice"
-            class="w-full px-2 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-700 text-xs focus:outline-none focus:ring-1 focus:ring-forest-600 cursor-pointer"
+            class="w-full px-2 py-1.5 bg-white dark:bg-[#251F23] border border-zinc-200 dark:border-[#3D2D38] rounded-lg text-zinc-700 dark:text-[#DDD2D9] text-xs focus:outline-none focus:ring-1 focus:ring-forest-600 dark:focus:ring-[#F294B7] cursor-pointer"
           >
             <option value="all">All Offices</option>
             <option v-for="off in officesList" :key="off.id" :value="off.id">
@@ -475,7 +489,7 @@ const getPriorityBadgeVariant = (p) => {
         <div>
           <select
             v-model="selectedType"
-            class="w-full px-2 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-700 text-xs focus:outline-none focus:ring-1 focus:ring-forest-600 cursor-pointer"
+            class="w-full px-2 py-1.5 bg-white dark:bg-[#251F23] border border-zinc-200 dark:border-[#3D2D38] rounded-lg text-zinc-700 dark:text-[#DDD2D9] text-xs focus:outline-none focus:ring-1 focus:ring-forest-600 dark:focus:ring-[#F294B7] cursor-pointer"
           >
             <option value="all">All Document Types</option>
             <option v-for="t in DOCUMENT_TYPES" :key="t" :value="t">
@@ -489,7 +503,7 @@ const getPriorityBadgeVariant = (p) => {
           <input
             v-model="filterDateFrom"
             type="date"
-            class="w-full px-2 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-700 text-xs focus:outline-none focus:ring-1 focus:ring-forest-600"
+            class="w-full px-2 py-1.5 bg-white dark:bg-[#251F23] border border-zinc-200 dark:border-[#3D2D38] rounded-lg text-zinc-700 dark:text-[#DDD2D9] text-xs focus:outline-none focus:ring-1 focus:ring-forest-600 dark:focus:ring-[#F294B7]"
             title="Registered on or after"
           />
         </div>
@@ -499,8 +513,8 @@ const getPriorityBadgeVariant = (p) => {
     <!-- Documents Responsive Table Card -->
     <BaseCard>
       <!-- Loading State -->
-      <div v-if="isLoading" class="p-8 text-center text-xs text-zinc-400 space-y-2">
-        <div class="animate-spin w-6 h-6 border-2 border-forest-700 border-t-transparent rounded-full mx-auto"></div>
+      <div v-if="isLoading" class="p-8 text-center text-xs text-zinc-400 dark:text-[#806B76] space-y-2">
+        <div class="animate-spin w-6 h-6 border-2 border-forest-700 dark:border-[#F294B7] border-t-transparent rounded-full mx-auto"></div>
         <p>Loading document tracking registry...</p>
       </div>
 
@@ -508,132 +522,115 @@ const getPriorityBadgeVariant = (p) => {
       <div v-else class="overflow-x-auto -mx-5 -my-5">
         <table class="w-full text-left border-collapse text-xs">
           <thead>
-            <tr class="border-b border-zinc-200/80 bg-zinc-50/70 text-zinc-500 font-medium">
-              <th class="py-3 px-4 font-semibold whitespace-nowrap">Tracking No.</th>
-              <th class="py-3 px-4 font-semibold min-w-[240px]">Document Title & Subject</th>
-              <th class="py-3 px-4 font-semibold whitespace-nowrap">Routing Folder</th>
-              <th class="py-3 px-4 font-semibold whitespace-nowrap">Document Type</th>
-              <th class="py-3 px-4 font-semibold whitespace-nowrap">Registered</th>
-              <th class="py-3 px-4 font-semibold whitespace-nowrap">Origin Office</th>
-              <th class="py-3 px-4 font-semibold whitespace-nowrap">Current / In Flight Office</th>
-              <th class="py-3 px-4 font-semibold whitespace-nowrap">Status</th>
-              <th class="py-3 px-4 font-semibold text-right whitespace-nowrap">Actions</th>
+            <tr class="border-b border-zinc-200/80 dark:border-[#2D252B] bg-zinc-50/70 dark:bg-[#201A1E] text-zinc-500 dark:text-[#BCAEBA] font-medium align-middle">
+              <th class="py-3.5 px-4 font-semibold whitespace-nowrap text-center align-middle w-36">Tracking No.</th>
+              <th class="py-3.5 px-4 font-semibold min-w-[220px] max-w-sm align-middle">Document Title</th>
+              <th class="py-3.5 px-4 font-semibold whitespace-nowrap text-center align-middle w-44">Routing Folder</th>
+              <th class="py-3.5 px-4 font-semibold whitespace-nowrap text-center align-middle w-36">Document Type</th>
+              <th class="py-3.5 px-4 font-semibold whitespace-nowrap text-center align-middle w-32">Registered</th>
+              <th class="py-3.5 px-4 font-semibold whitespace-nowrap text-center align-middle w-36">Origin Office</th>
+              <th class="py-3.5 px-4 font-semibold whitespace-nowrap text-center align-middle w-44">Current / In Flight Office</th>
+              <th class="py-3.5 px-4 font-semibold whitespace-nowrap text-center align-middle w-32">Status</th>
+              <th class="py-3.5 px-4 font-semibold text-center whitespace-nowrap align-middle w-36">Actions</th>
             </tr>
           </thead>
 
-          <tbody class="divide-y divide-zinc-100">
+          <tbody class="divide-y divide-zinc-100 dark:divide-[#2D252B]">
             <tr
               v-for="doc in paginatedDocs"
               :key="doc.id"
-              class="hover:bg-zinc-50/80 transition-colors cursor-pointer group"
+              class="hover:bg-zinc-50/80 dark:hover:bg-[#251F23]/60 transition-colors cursor-pointer group align-middle"
               @click="openDetailDrawer(doc)"
             >
               <!-- 1. Tracking Number -->
-              <td class="py-3 px-4 font-mono font-medium whitespace-nowrap" @click.stop>
-                <div class="flex items-center gap-1.5">
+              <td class="py-3.5 px-4 font-mono font-medium whitespace-nowrap align-middle text-center" @click.stop>
+                <div class="inline-flex items-center justify-center gap-1.5">
                   <button
                     @click="copySlip(doc.trackingNumber)"
                     type="button"
-                    class="px-2 py-0.5 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200/70 inline-flex items-center gap-1 cursor-pointer"
+                    class="px-2 py-0.5 rounded bg-zinc-100 dark:bg-[#251F23] hover:bg-zinc-200 dark:hover:bg-[#2D232A] text-zinc-800 dark:text-[#F5EDF1] border border-zinc-200/70 dark:border-[#3D2D38] inline-flex items-center gap-1 cursor-pointer transition-colors"
                     title="Click to copy tracking #"
                   >
                     <span>{{ doc.trackingNumber }}</span>
-                    <Copy class="w-2.5 h-2.5 text-zinc-400" />
+                    <Copy class="w-2.5 h-2.5 text-zinc-400 dark:text-[#806B76]" />
                   </button>
-                  <span v-if="copiedNumber === doc.trackingNumber" class="text-[10px] text-emerald-600 font-sans">
+                  <span v-if="copiedNumber === doc.trackingNumber" class="text-[10px] text-emerald-600 dark:text-emerald-400 font-sans font-medium">
                     Copied!
                   </span>
                 </div>
               </td>
 
-              <!-- 2. Title & Subject -->
-              <td class="py-3 px-4 min-w-[240px]">
-                <div class="flex items-center gap-1.5 flex-wrap mb-1">
-                  <span v-if="doc.relatedFinanceRecordId" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                    Activity Design
-                  </span>
-                  <span v-if="doc.prNumber" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
-                    PR: {{ doc.prNumber }}
-                  </span>
-                  <span v-if="doc.amountOfAd" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 text-zinc-700">
-                    ₱{{ Number(doc.amountOfAd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
-                  </span>
-                </div>
-                <div class="font-semibold text-zinc-900 group-hover:text-forest-900 line-clamp-1 leading-snug">
+              <!-- 2. Document Title -->
+              <td class="py-3.5 px-4 min-w-[220px] max-w-sm align-middle">
+                <div class="font-semibold text-zinc-900 dark:text-[#F5EDF1] group-hover:text-forest-900 dark:group-hover:text-[#F294B7] leading-snug transition-colors line-clamp-2" :title="doc.title">
                   {{ doc.title }}
-                </div>
-                <div class="flex items-center gap-2 mt-0.5 text-[11px] text-zinc-400 flex-wrap">
-                  <span v-if="doc.dateOfActivity" class="text-zinc-600 font-medium">
-                    Event: {{ formatDocDate(doc.dateOfActivity) }}
-                  </span>
-                  <span v-if="doc.description" class="truncate max-w-xs text-zinc-500">
-                    {{ doc.description }}
-                  </span>
-                  <span v-if="doc.dueDate" :class="isDocumentOverdue(doc) ? 'text-red-700 font-bold' : 'text-zinc-500'">
-                    Due: {{ formatDocDate(doc.dueDate) }}
-                    <span v-if="isDocumentOverdue(doc)" class="text-[9px] text-red-600 uppercase font-bold">OVERDUE</span>
-                  </span>
                 </div>
               </td>
 
               <!-- 3. Workflow Folder -->
-              <td class="py-3 px-4 whitespace-nowrap">
-                <span class="inline-flex items-center gap-1 font-medium text-zinc-700 bg-zinc-100 px-2 py-0.5 rounded text-[11px] border border-zinc-200/80">
-                  <FolderOpen class="w-3 h-3 text-forest-700 shrink-0" />
-                  <span>{{ doc.workflowFolderName || 'TCYSDO OFFICE' }}</span>
-                </span>
+              <td class="py-3.5 px-4 whitespace-nowrap align-middle text-center">
+                <div class="flex items-center justify-center">
+                  <span class="inline-flex items-center gap-1.5 font-medium text-zinc-700 dark:text-[#DDD2D9] bg-zinc-100 dark:bg-[#251F23] px-2.5 py-1 rounded-md text-[11px] border border-zinc-200/80 dark:border-[#3D2D38]">
+                    <FolderOpen class="w-3.5 h-3.5 text-forest-700 dark:text-[#F294B7] shrink-0" />
+                    <span>{{ doc.workflowFolderName || 'TCYSDO OFFICE' }}</span>
+                  </span>
+                </div>
               </td>
 
               <!-- 4. Document Type -->
-              <td class="py-3 px-4 whitespace-nowrap">
-                <span class="font-medium text-forest-800 bg-forest-50 px-2 py-0.5 rounded text-[11px] border border-forest-100">
-                  {{ doc.documentType }}
-                </span>
+              <td class="py-3.5 px-4 whitespace-nowrap align-middle text-center">
+                <div class="flex items-center justify-center">
+                  <span class="inline-flex items-center font-medium text-forest-800 dark:text-[#F294B7] bg-forest-50 dark:bg-[#2D1F28] px-2.5 py-1 rounded-md text-[11px] border border-forest-100 dark:border-[#4A2D3C]">
+                    {{ doc.documentType }}
+                  </span>
+                </div>
               </td>
 
               <!-- 5. Date Registered -->
-              <td class="py-3 px-4 text-zinc-500 whitespace-nowrap text-[11px]">
+              <td class="py-3.5 px-4 text-zinc-500 dark:text-[#BCAEBA] whitespace-nowrap text-[11px] align-middle text-center font-medium">
                 {{ formatDocDate(doc.dateRegistered) }}
               </td>
 
               <!-- 6. Originating Office -->
-              <td class="py-3 px-4 whitespace-nowrap text-zinc-700 text-[11px]">
-                <span class="font-medium">{{ doc.originatingOfficeCode || '—' }}</span>
-                <span class="text-zinc-400 ml-1 truncate max-w-[120px] inline-block align-bottom hidden lg:inline">
-                  {{ doc.originatingOfficeName }}
-                </span>
+              <td class="py-3.5 px-4 whitespace-nowrap text-zinc-700 dark:text-[#DDD2D9] text-[11px] align-middle text-center">
+                <div class="inline-flex items-center justify-center gap-1.5 font-medium" :title="doc.originatingOfficeName">
+                  <Building2 class="w-3.5 h-3.5 text-zinc-400 dark:text-[#806B76] shrink-0" />
+                  <span>{{ doc.originatingOfficeCode || doc.originatingOfficeName || '—' }}</span>
+                </div>
               </td>
 
               <!-- 7. Current Office or In Flight Destination -->
-              <td class="py-3 px-4 whitespace-nowrap">
-                <div v-if="doc.status === 'in_transit'" class="flex items-center gap-1.5 text-sky-800 font-semibold text-[11px]">
-                  <Send class="w-3 h-3 text-sky-600 animate-pulse shrink-0" />
+              <td class="py-3.5 px-4 whitespace-nowrap align-middle text-center">
+                <div v-if="doc.status === 'in_transit'" class="inline-flex items-center justify-center gap-1.5 text-sky-800 dark:text-sky-300 font-semibold text-[11px] bg-sky-50 dark:bg-sky-950/40 px-2.5 py-1 rounded-md border border-sky-200 dark:border-sky-800">
+                  <Send class="w-3 h-3 text-sky-600 dark:text-sky-400 animate-pulse shrink-0" />
                   <span>En Route &rarr; {{ doc.activeDestinationOfficeCode || 'Destination' }}</span>
                 </div>
-                <div v-else class="flex items-center gap-1.5 text-zinc-800 text-[11px]">
-                  <MapPin class="w-3 h-3 text-zinc-400 shrink-0" />
-                  <span>{{ doc.currentOfficeCode || doc.currentOfficeName || 'Office' }}</span>
+                <div v-else class="inline-flex items-center justify-center gap-1.5 text-zinc-800 dark:text-[#DDD2D9] text-[11px]">
+                  <MapPin class="w-3.5 h-3.5 text-zinc-400 dark:text-[#806B76] shrink-0" />
+                  <span class="font-medium">{{ doc.currentOfficeCode || doc.currentOfficeName || 'Office' }}</span>
                 </div>
               </td>
 
               <!-- 8. Document Status -->
-              <td class="py-3 px-4 whitespace-nowrap">
-                <BaseBadge :variant="getStatusBadgeVariant(doc.status)" size="xs" dot>
-                  {{ doc.status.replace(/_/g, ' ').toUpperCase() }}
-                </BaseBadge>
+              <td class="py-3.5 px-4 whitespace-nowrap align-middle text-center">
+                <div class="flex items-center justify-center">
+                  <BaseBadge :variant="getStatusBadgeVariant(doc.status)" size="xs" dot>
+                    {{ doc.status.replace(/_/g, ' ').toUpperCase() }}
+                  </BaseBadge>
+                </div>
               </td>
 
               <!-- 9. Actions Column -->
-              <td class="py-3 px-4 text-right whitespace-nowrap" @click.stop>
-                <div class="flex items-center justify-end gap-1">
+              <td class="py-3.5 px-4 text-center whitespace-nowrap align-middle" @click.stop>
+                <div class="flex items-center justify-center gap-1">
                   <!-- Link to Finance if AD linked -->
                   <router-link
                     v-if="doc.relatedFinanceRecordId"
                     :to="{ path: '/finance', query: { search: doc.title } }"
-                    class="p-1.5 rounded hover:bg-rose-50 text-zinc-500 hover:text-rose-700 transition-colors"
+                    class="p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 text-zinc-500 dark:text-[#BCAEBA] hover:text-rose-700 dark:hover:text-rose-400 transition-colors"
                     title="View Activity Design in Finance Monitoring"
                   >
-                    <FileText class="w-3.5 h-3.5 text-rose-600" />
+                    <FileText class="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
                   </router-link>
 
                   <!-- If In Transit: show Confirm Receipt button directly -->
@@ -653,10 +650,10 @@ const getPriorityBadgeVariant = (p) => {
                     v-else-if="!doc.isArchived"
                     @click="openTransferModal(doc)"
                     type="button"
-                    class="px-2 py-1 rounded bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 font-medium text-[11px] inline-flex items-center gap-1 cursor-pointer h-7 leading-none"
+                    class="px-2 py-1 rounded bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/40 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800 font-medium text-[11px] inline-flex items-center gap-1 cursor-pointer h-7 leading-none"
                     title="Transfer document"
                   >
-                    <Send class="w-3 h-3 text-sky-600" />
+                    <Send class="w-3 h-3 text-sky-600 dark:text-sky-400" />
                     <span>Transfer</span>
                   </button>
 
@@ -664,7 +661,7 @@ const getPriorityBadgeVariant = (p) => {
                   <button
                     @click="openDetailDrawer(doc)"
                     type="button"
-                    class="p-1.5 rounded hover:bg-zinc-100 text-zinc-500 hover:text-zinc-800 transition-colors"
+                    class="p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-[#251F23] text-zinc-500 dark:text-[#BCAEBA] hover:text-zinc-800 dark:hover:text-[#F5EDF1] transition-colors cursor-pointer"
                     title="View details and movements"
                   >
                     <Eye class="w-3.5 h-3.5" />
@@ -674,7 +671,7 @@ const getPriorityBadgeVariant = (p) => {
                   <button
                     @click="openEditModal(doc)"
                     type="button"
-                    class="p-1.5 rounded hover:bg-zinc-100 text-zinc-500 hover:text-zinc-800 transition-colors"
+                    class="p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-[#251F23] text-zinc-500 dark:text-[#BCAEBA] hover:text-zinc-800 dark:hover:text-[#F5EDF1] transition-colors cursor-pointer"
                     title="Edit document"
                   >
                     <Edit2 class="w-3.5 h-3.5" />
@@ -684,7 +681,7 @@ const getPriorityBadgeVariant = (p) => {
                   <button
                     @click="handleDeleteDoc(doc)"
                     type="button"
-                    class="p-1.5 rounded hover:bg-red-50 text-zinc-400 hover:text-red-700 transition-colors"
+                    class="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-950/40 text-zinc-400 dark:text-[#806B76] hover:text-red-700 dark:hover:text-red-400 transition-colors cursor-pointer"
                     title="Delete document"
                   >
                     <Trash2 class="w-3.5 h-3.5" />
@@ -695,9 +692,9 @@ const getPriorityBadgeVariant = (p) => {
 
             <!-- Empty State -->
             <tr v-if="paginatedDocs.length === 0">
-              <td colspan="9" class="py-12 text-center text-xs text-zinc-400 space-y-3">
-                <FolderOpen class="w-8 h-8 text-zinc-300 mx-auto" />
-                <p class="font-medium text-zinc-600">No physical documents match your criteria.</p>
+              <td colspan="9" class="py-12 text-center text-xs text-zinc-400 dark:text-[#806B76] space-y-3">
+                <FolderOpen class="w-8 h-8 text-zinc-300 dark:text-[#4A3D46] mx-auto" />
+                <p class="font-medium text-zinc-600 dark:text-[#DDD2D9]">No physical documents match your criteria.</p>
                 <div class="flex items-center justify-center gap-2">
                   <BaseButton variant="primary" size="sm" @click="openAddModal">
                     <Plus class="w-3.5 h-3.5 text-rose-200 mr-1" />
@@ -713,36 +710,40 @@ const getPriorityBadgeVariant = (p) => {
         </table>
       </div>
 
-      <!-- Pagination Footer -->
-      <div v-if="documentsList.length > 0" class="pt-4 border-t border-zinc-100 flex items-center justify-between gap-3 text-xs text-zinc-500">
-        <div>
-          Showing <strong>{{ (currentPage - 1) * pageSize + 1 }}</strong> to
-          <strong>{{ Math.min(currentPage * pageSize, documentsList.length) }}</strong> of
-          <strong>{{ documentsList.length }}</strong> documents
+      <!-- Pagination Footer Slot in BaseCard -->
+      <template #footer v-if="documentsList.length > 0">
+        <div class="flex items-center justify-between gap-3 text-xs text-zinc-500 dark:text-[#BCAEBA]">
+          <div>
+            Showing <strong class="text-zinc-800 dark:text-[#F5EDF1]">{{ (currentPage - 1) * pageSize + 1 }}</strong> to
+            <strong class="text-zinc-800 dark:text-[#F5EDF1]">{{ Math.min(currentPage * pageSize, documentsList.length) }}</strong> of
+            <strong class="text-zinc-800 dark:text-[#F5EDF1]">{{ documentsList.length }}</strong> documents
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button
+              @click="currentPage = Math.max(1, currentPage - 1)"
+              :disabled="currentPage === 1"
+              class="p-1.5 rounded border border-zinc-200 dark:border-[#3D2D38] bg-white dark:bg-[#251F23] hover:bg-zinc-50 dark:hover:bg-[#2D232A] text-zinc-700 dark:text-[#F5EDF1] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              aria-label="Previous page"
+            >
+              <ChevronLeft class="w-3.5 h-3.5" />
+            </button>
+
+            <span class="px-2 font-medium text-zinc-700 dark:text-[#DDD2D9]">
+              Page {{ currentPage }} of {{ totalPages }}
+            </span>
+
+            <button
+              @click="currentPage = Math.min(totalPages, currentPage + 1)"
+              :disabled="currentPage === totalPages"
+              class="p-1.5 rounded border border-zinc-200 dark:border-[#3D2D38] bg-white dark:bg-[#251F23] hover:bg-zinc-50 dark:hover:bg-[#2D232A] text-zinc-700 dark:text-[#F5EDF1] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              aria-label="Next page"
+            >
+              <ChevronRight class="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
-
-        <div class="flex items-center gap-1.5">
-          <button
-            @click="currentPage = Math.max(1, currentPage - 1)"
-            :disabled="currentPage === 1"
-            class="p-1.5 rounded border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            aria-label="Previous page"
-          >
-            <ChevronLeft class="w-3.5 h-3.5" />
-          </button>
-
-          <span class="px-2 font-medium">Page {{ currentPage }} of {{ totalPages }}</span>
-
-          <button
-            @click="currentPage = Math.min(totalPages, currentPage + 1)"
-            :disabled="currentPage === totalPages"
-            class="p-1.5 rounded border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            aria-label="Next page"
-          >
-            <ChevronRight class="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
+      </template>
     </BaseCard>
 
     <!-- Modals & Drawers -->

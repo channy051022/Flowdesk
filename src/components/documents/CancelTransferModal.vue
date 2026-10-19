@@ -63,7 +63,6 @@ const handleSubmit = async () => {
   <div
     v-if="isOpen"
     class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs overflow-y-auto"
-    @click.self="emit('close')"
   >
     <div
       class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-zinc-200 overflow-hidden text-left my-8"

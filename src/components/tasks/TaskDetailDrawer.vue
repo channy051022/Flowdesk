@@ -190,7 +190,6 @@ const getStatusBadgeVariant = (status) => {
       <div
         v-if="isOpen"
         class="fixed inset-0 z-40 bg-zinc-900/40 backdrop-blur-xs"
-        @click="emit('close')"
         aria-hidden="true"
       />
     </transition>

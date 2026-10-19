@@ -36,6 +36,8 @@ let defaultFoldersEnsured = false
  * removes dummy folders, and ensures each office has a board column.
  */
 export async function seedDefaultFoldersIfEmpty() {
+  if (defaultFoldersEnsured) return
+  defaultFoldersEnsured = true
   try {
     const tcysdoOffice = await ensureDefaultOffice()
     const allFolders = await db.workflowFolders.toArray()
