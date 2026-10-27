@@ -27,5 +27,4 @@ dist-ssr
 .gemini
 .impeccable
 .env
-
-.env
+.agents

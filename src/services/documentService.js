@@ -167,6 +167,12 @@ export async function getDocuments(criteria = {}) {
       docs = docs.filter((d) => d.workflowFolderId === folderNum)
     }
 
+    // 7. Finance Record Filter
+    if (criteria.financeRecordId && criteria.financeRecordId !== 'all') {
+      const finNum = Number(criteria.financeRecordId)
+      docs = docs.filter((d) => Number(d.relatedFinanceRecordId) === finNum)
+    }
+
     // Fetch active movements for in-transit destination lookup
     const inTransitMovements = await db.movements
       .where('status')
@@ -197,10 +203,12 @@ export async function getDocuments(criteria = {}) {
 
       return {
         ...doc,
-        title: fin?.activityDesign || doc.title,
+        title: doc.title || fin?.activityDesign || 'Untitled Document',
+        linkedAdTitle: fin ? (fin.activityDesign || fin.columnK || fin.supplierName) : null,
+        linkedAdId: fin ? fin.id : null,
         amountOfAd: fin ? fin.adAmount : 0,
         dateOfActivity: fin ? fin.eventDate : '',
-        supplierName: fin ? fin.supplierName : '',
+        supplierName: doc.supplierName || (fin ? fin.supplierName : ''),
         prNumber: fin ? fin.prNumber : '',
         poNumber: fin ? fin.poNumber : '',
         paymentStatus: fin ? fin.paymentStatus : '',
@@ -220,7 +228,7 @@ export async function getDocuments(criteria = {}) {
       }
     })
 
-    // 6. Text Search (title, trackingNumber, referenceNumber, sender, current office, destination, finance info)
+    // 8. Text Search (title, trackingNumber, referenceNumber, sender, current office, destination, finance info)
     if (criteria.search && criteria.search.trim()) {
       const q = criteria.search.trim().toLowerCase()
       return enrichedDocs.filter((d) => {
@@ -230,6 +238,8 @@ export async function getDocuments(criteria = {}) {
           (d.trackingNumber && d.trackingNumber.toLowerCase().includes(q)) ||
           (d.referenceNumber && d.referenceNumber.toLowerCase().includes(q)) ||
           (d.description && d.description.toLowerCase().includes(q)) ||
+          (d.supplierName && d.supplierName.toLowerCase().includes(q)) ||
+          (d.linkedAdTitle && d.linkedAdTitle.toLowerCase().includes(q)) ||
           (d.originatingOfficeName && d.originatingOfficeName.toLowerCase().includes(q)) ||
           (d.currentOfficeName && d.currentOfficeName.toLowerCase().includes(q)) ||
           (d.activeDestinationOfficeName && d.activeDestinationOfficeName.toLowerCase().includes(q)) ||
@@ -286,6 +296,26 @@ export async function getDocumentById(id) {
       workflowFolder = await db.workflowFolders.get(Number(doc.workflowFolderId))
     }
 
+    let recipientOffice = null
+    if (doc.recipientOfficeId) {
+      recipientOffice = await getOfficeById(doc.recipientOfficeId)
+    }
+
+    let relatedPrDocument = null
+    if (doc.relatedPrDocumentId) {
+      relatedPrDocument = await db.documents.get(Number(doc.relatedPrDocumentId))
+    }
+
+    let relatedPpmpDocument = null
+    if (doc.relatedPpmpDocumentId) {
+      relatedPpmpDocument = await db.documents.get(Number(doc.relatedPpmpDocumentId))
+    }
+
+    let relatedBudgetUtilization = null
+    if (doc.relatedBudgetUtilizationId) {
+      relatedBudgetUtilization = await db.budgetUtilizations.get(Number(doc.relatedBudgetUtilizationId))
+    }
+
     return {
       ...doc,
       originatingOffice: origOffice,
@@ -294,7 +324,11 @@ export async function getDocumentById(id) {
       workflowFolder: workflowFolder || null,
       activeMovement: activeMovement || null,
       activeDestinationOffice: activeDestinationOffice || null,
-      relatedFinanceRecord: relatedFinanceRecord || null
+      relatedFinanceRecord: relatedFinanceRecord || null,
+      recipientOffice: recipientOffice || null,
+      relatedPrDocument: relatedPrDocument || null,
+      relatedPpmpDocument: relatedPpmpDocument || null,
+      relatedBudgetUtilization: relatedBudgetUtilization || null
     }
   } catch (err) {
     console.error(`Failed to get document #${id}:`, err)
@@ -346,6 +380,15 @@ export async function createDocument(docData) {
     relatedFinanceRecordId: docData.relatedFinanceRecordId
       ? Number(docData.relatedFinanceRecordId)
       : null,
+    documentAmount: Number(docData.documentAmount) || 0,
+    supplierName: docData.supplierName?.trim() || '',
+    eventDate: docData.eventDate || '',
+    documentDate: docData.documentDate || '',
+    recipientOfficeId: docData.recipientOfficeId ? Number(docData.recipientOfficeId) : null,
+    relatedPrDocumentId: docData.relatedPrDocumentId ? Number(docData.relatedPrDocumentId) : null,
+    relatedPpmpDocumentId: docData.relatedPpmpDocumentId ? Number(docData.relatedPpmpDocumentId) : null,
+    relatedBudgetUtilizationId: docData.relatedBudgetUtilizationId ? Number(docData.relatedBudgetUtilizationId) : null,
+    customFields: typeof docData.customFields === 'object' ? JSON.stringify(docData.customFields) : (docData.customFields || ''),
     isArchived: false,
     syncStatus: 'local',
     isSample: Boolean(docData.isSample),
@@ -412,6 +455,25 @@ export async function updateDocument(id, docData) {
     relatedFinanceRecordId: docData.relatedFinanceRecordId !== undefined
       ? (docData.relatedFinanceRecordId ? Number(docData.relatedFinanceRecordId) : null)
       : existing.relatedFinanceRecordId,
+    documentAmount: docData.documentAmount !== undefined ? (Number(docData.documentAmount) || 0) : existing.documentAmount,
+    supplierName: docData.supplierName !== undefined ? docData.supplierName.trim() : existing.supplierName,
+    eventDate: docData.eventDate !== undefined ? docData.eventDate : existing.eventDate,
+    documentDate: docData.documentDate !== undefined ? docData.documentDate : existing.documentDate,
+    recipientOfficeId: docData.recipientOfficeId !== undefined
+      ? (docData.recipientOfficeId ? Number(docData.recipientOfficeId) : null)
+      : existing.recipientOfficeId,
+    relatedPrDocumentId: docData.relatedPrDocumentId !== undefined
+      ? (docData.relatedPrDocumentId ? Number(docData.relatedPrDocumentId) : null)
+      : existing.relatedPrDocumentId,
+    relatedPpmpDocumentId: docData.relatedPpmpDocumentId !== undefined
+      ? (docData.relatedPpmpDocumentId ? Number(docData.relatedPpmpDocumentId) : null)
+      : existing.relatedPpmpDocumentId,
+    relatedBudgetUtilizationId: docData.relatedBudgetUtilizationId !== undefined
+      ? (docData.relatedBudgetUtilizationId ? Number(docData.relatedBudgetUtilizationId) : null)
+      : existing.relatedBudgetUtilizationId,
+    customFields: docData.customFields !== undefined
+      ? (typeof docData.customFields === 'object' ? JSON.stringify(docData.customFields) : docData.customFields)
+      : existing.customFields,
     status: docData.status !== undefined ? docData.status : existing.status,
     updatedAt: now
   }
@@ -974,7 +1036,7 @@ export async function syncDocumentForAd(financeRecord) {
   }
 
   const existingDoc = await db.documents
-    .filter((d) => Number(d.relatedFinanceRecordId) === adId)
+    .filter((d) => Number(d.relatedFinanceRecordId) === adId && d.documentType === 'Activity Design')
     .first()
 
   const desc = `Supplier: ${financeRecord.supplierName || 'N/A'} | AD Amount: ₱${adAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -1005,8 +1067,65 @@ export async function syncDocumentForAd(financeRecord) {
       priority: 'High',
       dueDate: financeRecord.eventDate || '',
       relatedFinanceRecordId: adId,
+      documentAmount: adAmount,
+      eventDate: financeRecord.eventDate || '',
       initialNotes: `Automatically registered from Finance Internal Control Monitoring AD #${adId}`
     })
     return newDocId
+  }
+}
+
+/**
+ * Fetch all registered physical documents associated with a specific Activity Design (Finance Record)
+ */
+export async function getDocumentsForFinanceRecord(financeRecordId) {
+  try {
+    const numId = Number(financeRecordId)
+    if (!numId) return []
+    const allDocs = await getDocuments({ quickFilter: 'all' })
+    return allDocs.filter((d) => Number(d.relatedFinanceRecordId) === numId)
+  } catch (err) {
+    console.error(`Failed to get documents for finance record #${financeRecordId}:`, err)
+    return []
+  }
+}
+
+/**
+ * Cross-references an Activity Design's recorded reference numbers (PPMP, PR, PO)
+ * with actual registered physical documents in the Document Tracker.
+ * Distinguishes recorded metadata from trackable physical records.
+ */
+export async function getRegisteredDocumentSummaryForAd(financeRecord) {
+  if (!financeRecord?.id) {
+    return {
+      adDoc: null,
+      ppmpDocs: [],
+      prDocs: [],
+      poDocs: [],
+      payrollDocs: [],
+      supportingDocs: [],
+      allLinkedDocs: []
+    }
+  }
+
+  const linkedDocs = await getDocumentsForFinanceRecord(financeRecord.id)
+
+  const adDoc = linkedDocs.find((d) => d.documentType === 'Activity Design') || null
+  const ppmpDocs = linkedDocs.filter((d) => d.documentType === 'PPMP')
+  const prDocs = linkedDocs.filter((d) => d.documentType === 'Purchase Request')
+  const poDocs = linkedDocs.filter((d) => d.documentType === 'Purchase Order')
+  const payrollDocs = linkedDocs.filter((d) => d.documentType === 'Payroll / Honorarium')
+  const supportingDocs = linkedDocs.filter((d) =>
+    !['Activity Design', 'PPMP', 'Purchase Request', 'Purchase Order', 'Payroll / Honorarium'].includes(d.documentType)
+  )
+
+  return {
+    adDoc,
+    ppmpDocs,
+    prDocs,
+    poDocs,
+    payrollDocs,
+    supportingDocs,
+    allLinkedDocs: linkedDocs
   }
 }

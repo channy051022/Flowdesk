@@ -136,6 +136,39 @@ function runMigrations() {
       console.warn('[SQLite Migration] Notice checking tasks relatedFinanceRecordId column:', err.message);
     }
 
+    // 1b. Ensure document relationship and dynamic document-specific fields exist on documents table
+    try {
+      const docCols = db.prepare("PRAGMA table_info(documents)").all();
+      const docColNames = new Set(docCols.map((col) => col.name));
+
+      const newColumns = [
+        { name: 'documentAmount', type: 'REAL DEFAULT 0' },
+        { name: 'supplierName', type: 'TEXT' },
+        { name: 'eventDate', type: 'TEXT' },
+        { name: 'documentDate', type: 'TEXT' },
+        { name: 'recipientOfficeId', type: 'INTEGER' },
+        { name: 'relatedPrDocumentId', type: 'INTEGER' },
+        { name: 'relatedPpmpDocumentId', type: 'INTEGER' },
+        { name: 'relatedBudgetUtilizationId', type: 'INTEGER' },
+        { name: 'customFields', type: 'TEXT' }
+      ];
+
+      for (const col of newColumns) {
+        if (!docColNames.has(col.name)) {
+          console.log(`[SQLite Migration] Adding ${col.name} to documents...`);
+          db.exec(`ALTER TABLE documents ADD COLUMN ${col.name} ${col.type};`);
+        }
+      }
+
+      db.exec("CREATE INDEX IF NOT EXISTS idx_docs_finance ON documents(relatedFinanceRecordId);");
+      db.exec("CREATE INDEX IF NOT EXISTS idx_docs_type ON documents(documentType);");
+      db.exec("CREATE INDEX IF NOT EXISTS idx_docs_pr_rel ON documents(relatedPrDocumentId);");
+      db.exec("CREATE INDEX IF NOT EXISTS idx_docs_ppmp_rel ON documents(relatedPpmpDocumentId);");
+      db.exec("CREATE INDEX IF NOT EXISTS idx_docs_budget_rel ON documents(relatedBudgetUtilizationId);");
+    } catch (err) {
+      console.warn('[SQLite Migration] Notice checking documents relationship columns:', err.message);
+    }
+
     // 2. Ensure default TCYSDO OFFICE exists and remove dummy sample data
     try {
       const now = new Date().toISOString();
@@ -245,6 +278,15 @@ function createTables() {
       priority TEXT NOT NULL DEFAULT 'Routine',
       dueDate TEXT,
       relatedFinanceRecordId INTEGER,
+      documentAmount REAL DEFAULT 0,
+      supplierName TEXT,
+      eventDate TEXT,
+      documentDate TEXT,
+      recipientOfficeId INTEGER,
+      relatedPrDocumentId INTEGER,
+      relatedPpmpDocumentId INTEGER,
+      relatedBudgetUtilizationId INTEGER,
+      customFields TEXT,
       isArchived INTEGER NOT NULL DEFAULT 0,
       syncStatus TEXT DEFAULT 'local',
       isSample INTEGER NOT NULL DEFAULT 0,
@@ -257,6 +299,8 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_docs_status ON documents(status);
     CREATE INDEX IF NOT EXISTS idx_docs_folder ON documents(workflowFolderId);
     CREATE INDEX IF NOT EXISTS idx_docs_currentOffice ON documents(currentOfficeId);
+    CREATE INDEX IF NOT EXISTS idx_docs_finance ON documents(relatedFinanceRecordId);
+    CREATE INDEX IF NOT EXISTS idx_docs_type ON documents(documentType);
 
     -- Tasks table
     CREATE TABLE IF NOT EXISTS tasks (
@@ -448,7 +492,10 @@ const TABLE_COLUMNS = {
     'trackingNumber', 'title', 'documentType', 'referenceNumber', 'description',
     'dateRegistered', 'dateReceived', 'originatingOfficeId', 'currentOfficeId',
     'lastConfirmedOfficeId', 'workflowFolderId', 'status', 'priority', 'dueDate',
-    'relatedFinanceRecordId', 'isArchived', 'syncStatus', 'isSample', 'createdAt',
+    'relatedFinanceRecordId', 'documentAmount', 'supplierName', 'eventDate',
+    'documentDate', 'recipientOfficeId', 'relatedPrDocumentId', 'relatedPpmpDocumentId',
+    'relatedBudgetUtilizationId', 'customFields',
+    'isArchived', 'syncStatus', 'isSample', 'createdAt',
     'updatedAt', 'archivedAt'
   ],
   tasks: [

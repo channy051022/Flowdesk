@@ -52,10 +52,42 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
+  // Due & Overdue System Reminder Modal State
+  const isDueReminderModalOpen = ref(false)
+  const dueOverdueSummary = ref({
+    items: [],
+    overdueCount: 0,
+    dueTodayCount: 0,
+    totalCount: 0,
+    documentsCount: 0,
+    tasksCount: 0,
+    prRemindersCount: 0,
+    hasUrgentItems: false
+  })
+  const isLoadingDueSummary = ref(false)
+
+  const openDueReminderModal = () => {
+    isDueReminderModalOpen.value = true
+  }
+
+  const closeDueReminderModal = () => {
+    isDueReminderModalOpen.value = false
+  }
+
+  const setDueOverdueSummary = (summary) => {
+    dueOverdueSummary.value = summary
+  }
+
   return {
     isSidebarCollapsed,
     isMobileSidebarOpen,
     isOnline,
+    isDueReminderModalOpen,
+    dueOverdueSummary,
+    isLoadingDueSummary,
+    openDueReminderModal,
+    closeDueReminderModal,
+    setDueOverdueSummary,
     toggleSidebar,
     setSidebarCollapsed,
     toggleMobileSidebar,

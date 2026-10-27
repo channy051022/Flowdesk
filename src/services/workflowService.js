@@ -428,7 +428,13 @@ export async function moveDocumentToFolder(documentId, targetFolderId, options =
         updatedAt: now
       })
 
-      nextStatus = targetFolder.isCompletedFolder ? 'completed' : 'received'
+      if (options.status) {
+        nextStatus = options.status
+      } else if (options.keepStatus) {
+        nextStatus = doc.status
+      } else {
+        nextStatus = targetFolder.isCompletedFolder ? 'completed' : 'received'
+      }
 
       await db.documents.update(numDocId, {
         workflowFolderId: numFolderId,
@@ -439,16 +445,22 @@ export async function moveDocumentToFolder(documentId, targetFolderId, options =
         updatedAt: now
       })
 
+      const statusNote = nextStatus === 'returned_for_revision' ? ' (Marked as Returned for Revision)' : ''
+
       await db.activities.add({
         type: 'workflow_moved',
         entityType: 'document',
         entityId: numDocId,
-        description: `Moved document ${doc.trackingNumber} to "${targetFolder.name}" (Office: #${targetOfficeId})`,
+        description: `Moved document ${doc.trackingNumber} to "${targetFolder.name}" (Office: #${targetOfficeId})${statusNote}`,
         timestamp: now
       })
     } else {
       // Internal stage without office binding
-      if (targetFolder.isCompletedFolder) {
+      if (options.status) {
+        nextStatus = options.status
+      } else if (options.keepStatus) {
+        nextStatus = doc.status
+      } else if (targetFolder.isCompletedFolder) {
         nextStatus = 'completed'
       } else {
         const lowerName = targetFolder.name.toLowerCase()
@@ -471,11 +483,13 @@ export async function moveDocumentToFolder(documentId, targetFolderId, options =
         updatedAt: now
       })
 
+      const statusNote = nextStatus === 'returned_for_revision' ? ' (Marked as Returned for Revision)' : ''
+
       await db.activities.add({
         type: 'workflow_moved',
         entityType: 'document',
         entityId: numDocId,
-        description: `Moved document ${doc.trackingNumber} from "${currentFolderName}" to "${targetFolder.name}"`,
+        description: `Moved document ${doc.trackingNumber} from "${currentFolderName}" to "${targetFolder.name}"${statusNote}`,
         timestamp: now
       })
     }
@@ -566,7 +580,9 @@ export async function getBoardData(criteria = {}) {
 
       return {
         ...doc,
-        title: fin?.activityDesign || doc.title,
+        title: doc.title || fin?.activityDesign || 'Untitled Document',
+        linkedAdTitle: fin ? (fin.activityDesign || fin.columnK || fin.supplierName) : null,
+        linkedAdId: fin ? fin.id : null,
         originatingOfficeName: origOffice ? origOffice.name : 'Unknown Office',
         originatingOfficeCode: origOffice ? origOffice.code : '',
         currentOfficeName: currOffice ? currOffice.name : 'Unknown Office',

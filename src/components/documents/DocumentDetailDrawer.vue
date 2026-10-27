@@ -11,6 +11,7 @@ import ScannerModal from '../scanner/ScannerModal.vue'
 import {
   getDocumentById,
   getMovementsForDocument,
+  getDocumentsForFinanceRecord,
   updateDocumentStatus,
   archiveDocument,
   restoreDocument,
@@ -52,7 +53,9 @@ import {
   ChevronRight,
   Folder,
   Paperclip,
-  Scan
+  Scan,
+  Layers,
+  Coins
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -66,11 +69,12 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'updated', 'deleted'])
+const emit = defineEmits(['close', 'updated', 'deleted', 'viewActivityDesign', 'openDocument'])
 
 const docData = ref(null)
 const movementsList = ref([])
 const activitiesList = ref([])
+const siblingDocs = ref([])
 const isLoading = ref(true)
 const activeTab = ref('movements') // 'movements', 'details', 'activities'
 const copiedNumber = ref(false)
@@ -273,6 +277,16 @@ const loadFullDocument = async () => {
     acts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
     activitiesList.value = acts
     workflowFoldersList.value = folders
+    if (doc?.relatedFinanceRecordId) {
+      try {
+        const allLinked = await getDocumentsForFinanceRecord(doc.relatedFinanceRecordId)
+        siblingDocs.value = allLinked.filter((d) => d.id !== doc.id)
+      } catch {
+        siblingDocs.value = []
+      }
+    } else {
+      siblingDocs.value = []
+    }
     await loadAttachments()
   } catch (err) {
     console.error('Failed to load document details:', err)
@@ -757,55 +771,157 @@ const getMovementStatusColor = (st) => {
             </div>
           </div>
 
-          <!-- Linked Finance Monitoring Record Card -->
-          <div v-if="docData.relatedFinanceRecord" class="p-4 rounded-xl bg-rose-50/70 border border-rose-200/80 space-y-3">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-1.5 text-rose-950 font-bold text-xs">
-                <Landmark class="w-4 h-4 text-rose-600" />
-                <span>Finance Internal Control Monitoring (Canonical Source)</span>
+          <!-- Document-Specific Attributes Card (Adaptive for PPMP, PR, PO, Payroll, etc.) -->
+          <div
+            v-if="docData.documentAmount || docData.supplierName || docData.eventDate || docData.recipientOffice || docData.relatedPrDocument || docData.relatedPpmpDocument || docData.relatedBudgetUtilization"
+            class="p-4 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/60 space-y-3"
+          >
+            <div class="flex items-center gap-1.5 text-amber-950 dark:text-amber-200 font-bold text-xs uppercase tracking-wider">
+              <Coins class="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+              <span>Document-Specific Attributes ({{ docData.documentType }})</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5 text-[11px]">
+              <div v-if="docData.documentAmount">
+                <span class="text-zinc-500 dark:text-[#BCAEBA] text-[10px] block font-medium">Financial Value / Amount:</span>
+                <strong class="text-zinc-900 dark:text-[#F5EDF1] font-mono font-bold block text-sm">
+                  {{ formatCurrency(docData.documentAmount) }}
+                </strong>
               </div>
-              <router-link
-                :to="{ path: '/finance', query: { search: docData.relatedFinanceRecord.activityDesign || docData.title } }"
-                class="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700 hover:text-rose-900 hover:underline cursor-pointer"
+
+              <div v-if="docData.supplierName">
+                <span class="text-zinc-500 dark:text-[#BCAEBA] text-[10px] block font-medium">Awarded Supplier / Payee:</span>
+                <span class="text-zinc-800 dark:text-[#F5EDF1] font-medium block truncate">{{ docData.supplierName }}</span>
+              </div>
+
+              <div v-if="docData.eventDate">
+                <span class="text-zinc-500 dark:text-[#BCAEBA] text-[10px] block font-medium">Covered Date / Period:</span>
+                <span class="text-zinc-800 dark:text-[#F5EDF1] font-medium block">{{ docData.eventDate }}</span>
+              </div>
+
+              <div v-if="docData.recipientOffice">
+                <span class="text-zinc-500 dark:text-[#BCAEBA] text-[10px] block font-medium">Recipient Office:</span>
+                <span class="text-zinc-800 dark:text-[#F5EDF1] font-medium block truncate">{{ docData.recipientOffice.name }}</span>
+              </div>
+
+              <div v-if="docData.relatedPpmpDocument">
+                <span class="text-zinc-500 dark:text-[#BCAEBA] text-[10px] block font-medium">Linked PPMP Document:</span>
+                <button
+                  @click="emit('openDocument', docData.relatedPpmpDocument.id)"
+                  type="button"
+                  class="font-mono text-purple-700 dark:text-purple-400 font-bold hover:underline cursor-pointer"
+                >
+                  {{ docData.relatedPpmpDocument.trackingNumber }} ({{ docData.relatedPpmpDocument.referenceNumber || 'PPMP' }})
+                </button>
+              </div>
+
+              <div v-if="docData.relatedPrDocument">
+                <span class="text-zinc-500 dark:text-[#BCAEBA] text-[10px] block font-medium">Linked PR Document:</span>
+                <button
+                  @click="emit('openDocument', docData.relatedPrDocument.id)"
+                  type="button"
+                  class="font-mono text-amber-700 dark:text-amber-400 font-bold hover:underline cursor-pointer"
+                >
+                  {{ docData.relatedPrDocument.trackingNumber }} ({{ docData.relatedPrDocument.referenceNumber || 'PR' }})
+                </button>
+              </div>
+
+              <div v-if="docData.relatedBudgetUtilization" class="col-span-2 p-2 rounded bg-white dark:bg-[#1E171C] border border-amber-200/80 dark:border-amber-900/60">
+                <span class="text-[10px] text-zinc-500 dark:text-[#BCAEBA] block font-medium">Linked Budget Allocation Item:</span>
+                <div class="flex items-center justify-between mt-0.5">
+                  <span class="font-semibold text-zinc-900 dark:text-[#F5EDF1]">{{ docData.relatedBudgetUtilization.name }}</span>
+                  <span class="font-mono font-bold text-forest-800 dark:text-forest-300">{{ formatCurrency(docData.relatedBudgetUtilization.amount) }}</span>
+                </div>
+                <div v-if="docData.relatedBudgetUtilization.supplier" class="text-[10px] text-zinc-500 dark:text-[#BCAEBA] mt-0.5">
+                  Supplier: {{ docData.relatedBudgetUtilization.supplier }} • Status: {{ docData.relatedBudgetUtilization.status }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Linked Finance Monitoring Record Card -->
+          <div v-if="docData.relatedFinanceRecord" class="p-4 rounded-xl bg-forest-50/60 dark:bg-forest-950/20 border border-forest-200 dark:border-forest-900 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5 text-forest-950 dark:text-forest-200 font-bold text-xs uppercase tracking-wider">
+                <Landmark class="w-4 h-4 text-forest-700 dark:text-forest-400" />
+                <span>Parent Activity Design Record</span>
+              </div>
+              <button
+                @click="emit('viewActivityDesign', docData.relatedFinanceRecord.id)"
+                type="button"
+                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-forest-800 hover:bg-forest-900 text-white text-[11px] font-semibold cursor-pointer shadow-2xs transition-colors"
               >
-                <span>Open in Finance</span>
-                <ExternalLink class="w-3 h-3" />
-              </router-link>
+                <span>View Full AD Lifecycle</span>
+                <ExternalLink class="w-3 h-3 text-rose-200" />
+              </button>
             </div>
 
             <div class="grid grid-cols-2 gap-2.5 text-[11px]">
               <div>
-                <span class="text-zinc-500 text-[10px] block font-medium">Activity Design:</span>
-                <strong class="text-zinc-900 block truncate">{{ docData.relatedFinanceRecord.activityDesign || docData.title }}</strong>
+                <span class="text-zinc-500 dark:text-[#BCAEBA] text-[10px] block font-medium">Activity Design:</span>
+                <strong class="text-zinc-900 dark:text-[#F5EDF1] block truncate">{{ docData.relatedFinanceRecord.activityDesign || docData.title }}</strong>
               </div>
               <div>
-                <span class="text-zinc-500 text-[10px] block font-medium">Amount of AD:</span>
-                <strong class="text-rose-700 font-mono font-bold block">
+                <span class="text-zinc-500 dark:text-[#BCAEBA] text-[10px] block font-medium">Total AD Amount:</span>
+                <strong class="text-forest-900 dark:text-forest-200 font-mono font-bold block">
                   {{ formatCurrency(docData.relatedFinanceRecord.amountOfAd || docData.relatedFinanceRecord.adAmount || 0) }}
                 </strong>
               </div>
               <div>
-                <span class="text-zinc-500 text-[10px] block font-medium">Supplier / Payee:</span>
-                <span class="text-zinc-800 font-medium block truncate">{{ docData.relatedFinanceRecord.supplier || docData.relatedFinanceRecord.supplierName || '—' }}</span>
+                <span class="text-zinc-500 dark:text-[#BCAEBA] text-[10px] block font-medium">AD Status:</span>
+                <span class="text-zinc-800 dark:text-[#F5EDF1] font-semibold block">{{ docData.relatedFinanceRecord.adStatus || 'Pending' }}</span>
               </div>
               <div>
-                <span class="text-zinc-500 text-[10px] block font-medium">Date of Event / Activity:</span>
-                <span class="text-zinc-800 font-medium block">{{ formatDocDate(docData.relatedFinanceRecord.dateOfActivity) }}</span>
-              </div>
-              <div>
-                <span class="text-zinc-500 text-[10px] block font-medium">Purchase Request (PR):</span>
-                <span v-if="docData.relatedFinanceRecord.prNumber" class="font-mono text-emerald-700 font-semibold">
-                  {{ docData.relatedFinanceRecord.prNumber }}
-                </span>
-                <span v-else class="text-amber-700 font-medium italic">
-                  Pending (PR Reminder Active)
+                <span class="text-zinc-500 dark:text-[#BCAEBA] text-[10px] block font-medium">Payment Status:</span>
+                <span :class="docData.relatedFinanceRecord.paymentStatus === 'Paid' ? 'text-emerald-700 font-bold' : 'text-zinc-700 dark:text-[#DDD2D9] font-medium'">
+                  {{ docData.relatedFinanceRecord.paymentStatus || 'Pending Payment' }}
                 </span>
               </div>
-              <div>
-                <span class="text-zinc-500 text-[10px] block font-medium">Payment Status:</span>
-                <span :class="docData.relatedFinanceRecord.paymentStatus === 'Paid' ? 'text-emerald-700 font-bold' : 'text-zinc-700 font-medium'">
-                  {{ docData.relatedFinanceRecord.paymentStatus || 'Unpaid' }}
-                </span>
+            </div>
+          </div>
+
+          <!-- Sibling Documents under this Activity Design -->
+          <div v-if="siblingDocs.length > 0" class="p-3.5 rounded-xl border border-zinc-200 dark:border-[#3D2D38] bg-zinc-50/70 dark:bg-[#251D23] space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-zinc-900 dark:text-[#F5EDF1] flex items-center gap-1.5 uppercase tracking-wider">
+                <Layers class="w-3.5 h-3.5 text-forest-700 dark:text-forest-400" />
+                <span>Other Documents for this Activity Design ({{ siblingDocs.length }})</span>
+              </span>
+            </div>
+
+            <div class="space-y-1.5 pt-1">
+              <div
+                v-for="sib in siblingDocs"
+                :key="sib.id"
+                class="p-2 rounded-lg bg-white dark:bg-[#1E171C] border border-zinc-200 dark:border-[#3D2D38] flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-[#2A2228] transition-colors"
+              >
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">
+                      {{ sib.documentType }}
+                    </span>
+                    <span class="font-mono text-xs font-semibold text-zinc-900 dark:text-[#F5EDF1]">
+                      {{ sib.trackingNumber }}
+                    </span>
+                  </div>
+                  <div class="text-[11px] text-zinc-600 dark:text-[#BCAEBA] truncate mt-0.5">
+                    {{ sib.title }}
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2 ml-2 shrink-0">
+                  <span class="text-[10px] text-zinc-500 font-medium">
+                    {{ sib.currentOfficeName }}
+                  </span>
+                  <button
+                    @click="emit('openDocument', sib.id)"
+                    type="button"
+                    class="px-2 py-0.5 rounded text-[11px] font-medium text-forest-800 dark:text-forest-300 hover:bg-forest-50 dark:hover:bg-[#2A2228] border border-forest-200 dark:border-forest-800 inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>View</span>
+                    <ArrowRight class="w-2.5 h-2.5" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>

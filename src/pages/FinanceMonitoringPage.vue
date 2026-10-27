@@ -25,7 +25,10 @@ import BaseBadge from '../components/common/BaseBadge.vue'
 import BaseButton from '../components/common/BaseButton.vue'
 import FinanceRecordModal from '../components/finance/FinanceRecordModal.vue'
 import FinanceDetailModal from '../components/finance/FinanceDetailModal.vue'
+import DocumentModal from '../components/documents/DocumentModal.vue'
+import DocumentDetailDrawer from '../components/documents/DocumentDetailDrawer.vue'
 import ScannerModal from '../components/scanner/ScannerModal.vue'
+import { createDocument } from '../services/documentService'
 import { toast } from '../composables/useToast'
 import {
   Landmark,
@@ -136,6 +139,36 @@ const isFormModalOpen = ref(false)
 const recordToEdit = ref(null)
 const isDetailModalOpen = ref(false)
 const selectedRecord = ref(null)
+
+// Linked Trackable Document Modals
+const isDocumentModalOpen = ref(false)
+const initialRegistrationValues = ref(null)
+const selectedDocumentId = ref(null)
+const isDocumentDrawerOpen = ref(false)
+
+const handleRegisterDocumentFromAd = (payload) => {
+  initialRegistrationValues.value = payload
+  isDocumentModalOpen.value = true
+}
+
+const handleOpenDocumentFromAd = (doc) => {
+  if (doc && doc.id) {
+    selectedDocumentId.value = doc.id
+    isDocumentDrawerOpen.value = true
+  }
+}
+
+const handleDocumentSaved = async ({ data }) => {
+  try {
+    await createDocument(data)
+    isDocumentModalOpen.value = false
+    initialRegistrationValues.value = null
+    toast.success('Document registered and placed in initial workflow folder.')
+    await loadRecords()
+  } catch (err) {
+    toast.error('Error registering document: ' + err.message)
+  }
+}
 
 // Hardware Scanner Modal State
 const isScannerModalOpen = ref(false)
@@ -1119,6 +1152,26 @@ const getAdBadgeVariant = (status) => {
       @edit="openEditModal"
       @delete="confirmDelete"
       @scan="openScannerModal"
+      @register-document="handleRegisterDocumentFromAd"
+      @open-document="handleOpenDocumentFromAd"
+      @refresh="loadRecords"
+    />
+
+    <!-- Register Trackable Physical Document Modal (pre-filled from AD) -->
+    <DocumentModal
+      :is-open="isDocumentModalOpen"
+      :document-to-edit="null"
+      :initial-values="initialRegistrationValues"
+      @close="isDocumentModalOpen = false; initialRegistrationValues = null"
+      @saved="handleDocumentSaved"
+    />
+
+    <!-- Document Detail Drawer -->
+    <DocumentDetailDrawer
+      :is-open="isDocumentDrawerOpen"
+      :document-id="selectedDocumentId"
+      @close="isDocumentDrawerOpen = false; selectedDocumentId = null"
+      @updated="loadRecords"
     />
 
     <!-- FlowDesk Desktop Hardware Scanner Modal -->

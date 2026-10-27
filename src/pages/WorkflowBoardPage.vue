@@ -7,6 +7,7 @@ import FolderModal from '../components/workflow/FolderModal.vue'
 import ArchiveFolderModal from '../components/workflow/ArchiveFolderModal.vue'
 import DocumentModal from '../components/documents/DocumentModal.vue'
 import DocumentDetailDrawer from '../components/documents/DocumentDetailDrawer.vue'
+import FinanceDetailModal from '../components/finance/FinanceDetailModal.vue'
 import TransferModal from '../components/documents/TransferModal.vue'
 import ReceiveModal from '../components/documents/ReceiveModal.vue'
 import {
@@ -21,7 +22,7 @@ import {
   isDocumentOverdue
 } from '../services/documentService'
 import { getOffices } from '../services/officeService'
-import { DOCUMENT_TYPES, DOCUMENT_STATUSES } from '../db/database'
+import db, { DOCUMENT_TYPES, DOCUMENT_STATUSES } from '../db/database'
 import { toast } from '../composables/useToast'
 import {
   Kanban,
@@ -52,7 +53,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Table,
-  RotateCcw
+  RotateCcw,
+  Landmark
 } from 'lucide-vue-next'
 
 // State
@@ -119,14 +121,22 @@ const folderToArchive = ref(null)
 const folderToArchiveCount = ref(0)
 
 const isAddDocModalOpen = ref(false)
+const initialRegistrationValues = ref(null)
 const selectedDocumentId = ref(null)
 const isDetailDrawerOpen = ref(false)
+
+const isAdDetailModalOpen = ref(false)
+const selectedAdRecord = ref(null)
 
 const isTransferModalOpen = ref(false)
 const documentForTransfer = ref(null)
 
 const isReceiveModalOpen = ref(false)
 const documentForReceive = ref(null)
+
+// Return Confirmation Modal state
+const isReturnConfirmModalOpen = ref(false)
+const pendingReturnMove = ref(null) // { doc, targetFolder, currentFolder }
 
 const copiedNumber = ref('')
 let copyTimer = null
@@ -585,11 +595,57 @@ const onDrop = async (event, targetFolder) => {
   const doc = draggedDocument.value
   draggedDocument.value = null
   isDraggingCardId.value = null
+  await promptOrExecuteMove(doc, targetFolder)
+}
+
+// Check if moving to a previous routing folder; prompt with return dialog if so
+const promptOrExecuteMove = async (doc, targetFolder) => {
+  if (doc.workflowFolderId === targetFolder.id) {
+    return
+  }
+
+  // Determine if target folder is previous / backward in the workflow sequence
+  const currentFolderIndex = boardColumns.value.findIndex((c) => c.folder.id === doc.workflowFolderId)
+  const targetFolderIndex = boardColumns.value.findIndex((c) => c.folder.id === targetFolder.id)
+  const currentFolder = allActiveFolders.value.find((f) => f.id === doc.workflowFolderId)
+
+  const isMovingBackwards = (currentFolderIndex > -1 && targetFolderIndex > -1)
+    ? targetFolderIndex < currentFolderIndex
+    : ((targetFolder.sortOrder || 0) < (currentFolder?.sortOrder || 0))
+
+  if (isMovingBackwards) {
+    // Show return confirmation dialog
+    pendingReturnMove.value = { doc, targetFolder, currentFolder }
+    isReturnConfirmModalOpen.value = true
+    return
+  }
+
+  // Forward or neutral move
   await executeMove(doc, targetFolder)
 }
 
+const confirmReturnMove = async (isReturned) => {
+  if (!pendingReturnMove.value) return
+  const { doc, targetFolder } = pendingReturnMove.value
+  isReturnConfirmModalOpen.value = false
+  pendingReturnMove.value = null
+
+  if (isReturned) {
+    // If clicked Yes: mark status as return (returned_for_revision)
+    await executeMove(doc, targetFolder, { status: 'returned_for_revision' })
+  } else {
+    // If clicked No: status remains unchanged
+    await executeMove(doc, targetFolder, { keepStatus: true })
+  }
+}
+
+const cancelReturnMove = () => {
+  isReturnConfirmModalOpen.value = false
+  pendingReturnMove.value = null
+}
+
 // Execute Card Move with Optimistic UI & Safe Rollback
-const executeMove = async (doc, targetFolder) => {
+const executeMove = async (doc, targetFolder, options = {}) => {
   if (doc.workflowFolderId === targetFolder.id) {
     return
   }
@@ -610,6 +666,8 @@ const executeMove = async (doc, targetFolder) => {
   // Snapshot current columns for rollback
   const previousColumns = JSON.parse(JSON.stringify(boardColumns.value))
 
+  const newStatus = options.status || (options.keepStatus ? doc.status : undefined)
+
   // Optimistic UI update: relocate card immediately in local state
   try {
     for (const col of boardColumns.value) {
@@ -619,7 +677,8 @@ const executeMove = async (doc, targetFolder) => {
     if (targetCol) {
       targetCol.items.unshift({
         ...doc,
-        workflowFolderId: targetFolder.id
+        workflowFolderId: targetFolder.id,
+        ...(newStatus ? { status: newStatus } : {})
       })
     }
   } catch (optErr) {
@@ -628,9 +687,13 @@ const executeMove = async (doc, targetFolder) => {
 
   // Commit move to Dexie transaction
   try {
-    await moveDocumentToFolder(doc.id, targetFolder.id)
-    toast.success(`Moved ${doc.trackingNumber} to "${targetFolder.name}".`)
-    showFeedback(`Moved ${doc.trackingNumber} to "${targetFolder.name}"`, 'success')
+    await moveDocumentToFolder(doc.id, targetFolder.id, options)
+    const statusNote = options.status === 'returned_for_revision'
+      ? ' and marked as Returned for Revision'
+      : (options.keepStatus ? ' (status preserved)' : '')
+
+    toast.success(`Moved ${doc.trackingNumber} to "${targetFolder.name}"${statusNote}.`)
+    showFeedback(`Moved ${doc.trackingNumber} to "${targetFolder.name}"${statusNote}`, 'success')
 
     // Brief highlight pulse on destination folder
     recentlyMovedFolderId.value = targetFolder.id
@@ -712,13 +775,52 @@ const openDetailDrawer = (doc) => {
 }
 
 const openAddDocumentModal = () => {
+  initialRegistrationValues.value = null
   isAddDocModalOpen.value = true
+}
+
+const openAdDetail = async (adIdOrDoc) => {
+  let adId = null
+  if (typeof adIdOrDoc === 'number' || typeof adIdOrDoc === 'string') {
+    adId = Number(adIdOrDoc)
+  } else if (adIdOrDoc && adIdOrDoc.relatedFinanceRecordId) {
+    adId = Number(adIdOrDoc.relatedFinanceRecordId)
+  }
+  if (!adId) return
+
+  const rec = await db.financeRecords.get(adId)
+  if (rec) {
+    selectedAdRecord.value = rec
+    isAdDetailModalOpen.value = true
+  }
+}
+
+const handleRegisterFromAd = (payload) => {
+  initialRegistrationValues.value = payload
+  isAddDocModalOpen.value = true
+}
+
+const handleOpenDocumentFromAd = (doc) => {
+  if (doc && doc.id) {
+    selectedDocumentId.value = doc.id
+    isDetailDrawerOpen.value = true
+  }
+}
+
+const getDocTypeBadgeClass = (type) => {
+  if (type === 'PPMP') return 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800'
+  if (type === 'Purchase Request (PR)') return 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+  if (type === 'Purchase Order (PO)') return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+  if (type === 'Payroll / Honorarium') return 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+  if (type === 'Activity Design') return 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+  return 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-[#251F23] dark:text-[#DDD2D9] dark:border-[#3D2D38]'
 }
 
 const handleDocumentSaved = async ({ data }) => {
   try {
     await createDocument(data)
     isAddDocModalOpen.value = false
+    initialRegistrationValues.value = null
     showFeedback('Document registered and placed in initial workflow folder.')
     await loadBoard()
   } catch (err) {
@@ -1388,32 +1490,47 @@ const getFolderDotClass = (color) => {
                   </span>
                 </div>
 
-                <BaseBadge :variant="getPriorityBadgeVariant(card.priority)" size="xs">
-                  {{ card.priority }}
-                </BaseBadge>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span
+                    v-if="card.status === 'returned_for_revision'"
+                    class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 flex items-center gap-0.5"
+                  >
+                    <RotateCcw class="w-2.5 h-2.5" />
+                    Returned
+                  </span>
+
+                  <BaseBadge :variant="getPriorityBadgeVariant(card.priority)" size="xs">
+                    {{ card.priority }}
+                  </BaseBadge>
+                </div>
               </div>
 
               <!-- Subject / Title & Activity Design Badges -->
               <div class="space-y-1">
-                <div v-if="card.relatedFinanceRecordId || card.amountOfAd" class="flex items-center gap-1 flex-wrap">
-                  <span
+                <div v-if="card.relatedFinanceRecordId || card.amountOfAd || card.documentAmount" class="flex items-center gap-1 flex-wrap">
+                  <button
                     v-if="card.relatedFinanceRecordId"
-                    class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50"
+                    @click.stop="openAdDetail(card.relatedFinanceRecordId)"
+                    type="button"
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-forest-50 dark:bg-[#2D1F28] hover:bg-forest-100 dark:hover:bg-[#3D2534] text-forest-800 dark:text-[#F294B7] border border-forest-200/80 dark:border-[#4A2D3C] transition-colors cursor-pointer text-left max-w-full"
+                    :title="'View Activity Design Lifecycle: ' + (card.linkedAdTitle || 'Activity Design')"
                   >
-                    <Sparkles class="w-2.5 h-2.5 text-[#D9467B] dark:text-[#F294B7]" />
-                    <span>AD</span>
-                  </span>
+                    <Landmark class="w-2.5 h-2.5 text-forest-700 dark:text-[#F294B7] shrink-0" />
+                    <span class="truncate">AD: {{ card.linkedAdTitle || ('#' + card.relatedFinanceRecordId) }}</span>
+                  </button>
+
                   <span
                     v-if="card.prNumber"
-                    class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50 font-mono"
+                    class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50 font-mono"
                   >
                     PR: {{ card.prNumber }}
                   </span>
+
                   <span
-                    v-if="card.amountOfAd"
+                    v-if="card.documentAmount || card.amountOfAd"
                     class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-zinc-100 dark:bg-[#251F23] text-zinc-800 dark:text-[#F5EDF1]"
                   >
-                    ₱{{ Number(card.amountOfAd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                    ₱{{ Number(card.documentAmount || card.amountOfAd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                   </span>
                 </div>
 
@@ -1428,7 +1545,7 @@ const getFolderDotClass = (color) => {
 
               <!-- Document Type & Due Date -->
               <div class="flex items-center justify-between gap-1 text-[11px] pt-1">
-                <span class="font-medium text-[#D9467B] dark:text-[#F294B7] bg-[#FFF0F5] dark:bg-[#2D1F28] px-2 py-0.2 rounded text-[10px] border border-[#F3C4D7] dark:border-[#4A2D3C] truncate max-w-[130px]">
+                <span :class="['font-medium px-2 py-0.5 rounded text-[10px] border truncate max-w-[150px]', getDocTypeBadgeClass(card.documentType)]">
                   {{ card.documentType }}
                 </span>
 
@@ -1500,7 +1617,7 @@ const getFolderDotClass = (color) => {
                     <button
                       v-for="targetFolder in allActiveFolders.filter((f) => f.id !== card.workflowFolderId)"
                       :key="targetFolder.id"
-                      @click="executeMove(card, targetFolder); closeAllMenus()"
+                      @click="promptOrExecuteMove(card, targetFolder); closeAllMenus()"
                       type="button"
                       class="w-full px-3 py-1.5 text-left text-zinc-700 dark:text-[#F5EDF1] hover:bg-zinc-50 dark:hover:bg-[#251F23] flex items-center justify-between gap-2 cursor-pointer text-xs transition-colors"
                     >
@@ -1576,7 +1693,8 @@ const getFolderDotClass = (color) => {
     <DocumentModal
       :is-open="isAddDocModalOpen"
       :document-to-edit="null"
-      @close="isAddDocModalOpen = false"
+      :initial-values="initialRegistrationValues"
+      @close="isAddDocModalOpen = false; initialRegistrationValues = null"
       @saved="handleDocumentSaved"
     />
 
@@ -1586,8 +1704,20 @@ const getFolderDotClass = (color) => {
       :document-id="selectedDocumentId"
       @close="isDetailDrawerOpen = false; selectedDocumentId = null"
       @updated="loadBoard"
+      @view-activity-design="openAdDetail"
+      @open-document="handleOpenDocumentFromAd"
       @transfer-requested="openTransferModal"
       @receive-requested="openReceiveModal"
+    />
+
+    <!-- Activity Design Master Lifecycle Modal -->
+    <FinanceDetailModal
+      :is-open="isAdDetailModalOpen"
+      :record="selectedAdRecord"
+      @close="isAdDetailModalOpen = false; selectedAdRecord = null"
+      @register-document="handleRegisterFromAd"
+      @open-document="handleOpenDocumentFromAd"
+      @refresh="loadBoard"
     />
 
     <!-- 5. Transfer Modal (When dispatching to external/destination office) -->
@@ -1605,6 +1735,114 @@ const getFolderDotClass = (color) => {
       @close="isReceiveModalOpen = false; documentForReceive = null"
       @received="handleReceived"
     />
+
+    <!-- 7. Return Confirmation Dialog (When moving back to a previous routing folder) -->
+    <div
+      v-if="isReturnConfirmModalOpen && pendingReturnMove"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 dark:bg-black/75 backdrop-blur-xs overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="return-modal-title"
+    >
+      <div
+        class="w-full max-w-md bg-white dark:bg-[#1E171C] rounded-2xl shadow-2xl border border-zinc-200 dark:border-[#3D2D38] overflow-hidden text-left my-8 animate-in fade-in zoom-in-95 duration-150"
+      >
+        <!-- Modal Header -->
+        <div class="px-5 py-4 border-b border-zinc-200 dark:border-[#3D2D38] flex items-center justify-between bg-rose-50/70 dark:bg-rose-950/30">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 flex items-center justify-center shrink-0 border border-rose-200 dark:border-rose-800 shadow-2xs">
+              <RotateCcw class="w-4 h-4" />
+            </div>
+            <div>
+              <h3 id="return-modal-title" class="text-base font-bold text-zinc-900 dark:text-[#F5EDF1] leading-tight">
+                Document Moved Back
+              </h3>
+              <p class="text-xs text-rose-700 dark:text-rose-400 mt-0.5">
+                Moving to a previous routing folder
+              </p>
+            </div>
+          </div>
+
+          <button
+            @click="cancelReturnMove"
+            type="button"
+            class="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-[#DDD2D9] hover:bg-zinc-100 dark:hover:bg-[#2A2228] transition-colors cursor-pointer"
+            aria-label="Cancel and close dialog"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-5 space-y-4 text-xs text-zinc-600 dark:text-[#BCAEBA]">
+          <!-- Card Info Box -->
+          <div class="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#251D23] border border-zinc-200/80 dark:border-[#3D2D38] space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] font-bold text-zinc-800 dark:text-[#DDD2D9]">
+                {{ pendingReturnMove.doc.trackingNumber }}
+              </span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-200/70 dark:bg-[#3D2D38] text-zinc-700 dark:text-[#DDD2D9]">
+                Current: {{ pendingReturnMove.currentFolder?.name || 'Current Stage' }}
+              </span>
+            </div>
+
+            <p class="font-semibold text-zinc-900 dark:text-[#F5EDF1] text-xs line-clamp-2">
+              {{ pendingReturnMove.doc.title }}
+            </p>
+
+            <div class="flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-[#806B76] pt-1 border-t border-zinc-200/60 dark:border-[#3D2D38]">
+              <span>Moving back to:</span>
+              <strong class="text-forest-700 dark:text-forest-400 font-bold">
+                {{ pendingReturnMove.targetFolder.name }}
+              </strong>
+            </div>
+          </div>
+
+          <!-- Question Prompt -->
+          <div class="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/50 flex items-start gap-2.5">
+            <AlertTriangle class="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div class="space-y-1">
+              <p class="font-semibold text-amber-950 dark:text-amber-200 text-xs">
+                Is this document being returned?
+              </p>
+              <p class="text-[11px] text-amber-900/80 dark:text-amber-300/80 leading-relaxed">
+                If you select <strong>Yes</strong>, the document status will be marked as <span class="font-bold text-rose-600 dark:text-rose-400">"Returned for Revision"</span>. If you select <strong>No</strong>, its current status will remain unchanged.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer Actions -->
+        <div class="px-5 py-3.5 border-t border-zinc-200 dark:border-[#3D2D38] bg-zinc-50/70 dark:bg-[#251D23] flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2">
+          <button
+            type="button"
+            @click="cancelReturnMove"
+            class="px-3 py-2 rounded-xl text-zinc-600 dark:text-[#BCAEBA] hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#2A2228] text-xs font-medium transition-colors cursor-pointer"
+          >
+            Cancel Move
+          </button>
+
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              @click="confirmReturnMove(false)"
+              class="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl border border-zinc-300 dark:border-[#4D3A47] hover:bg-zinc-100 dark:hover:bg-[#2A2228] text-zinc-700 dark:text-[#DDD2D9] text-xs font-semibold transition-colors cursor-pointer"
+            >
+              No, Keep Status
+            </button>
+
+            <button
+              type="button"
+              @click="confirmReturnMove(true)"
+              class="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs inline-flex items-center justify-center gap-1.5"
+            >
+              <RotateCcw class="w-3.5 h-3.5" />
+              <span>Yes, Mark as Returned</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 

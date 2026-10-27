@@ -131,6 +131,11 @@ dexieDb.version(11).stores({
   attachments: '++id, entityType, entityId, fileName, fileSize, fileType, relativePath, notes, createdAt'
 })
 
+// Version 12: Extended document tracking relationships and dynamic fields
+dexieDb.version(12).stores({
+  documents: '++id, trackingNumber, title, documentType, referenceNumber, originatingOfficeId, currentOfficeId, lastConfirmedOfficeId, workflowFolderId, status, priority, dueDate, relatedFinanceRecordId, relatedPrDocumentId, relatedPpmpDocumentId, relatedBudgetUtilizationId, isArchived, syncStatus, isSample, createdAt, updatedAt, archivedAt'
+})
+
 export const FOLDER_BEHAVIORS = [
   { value: 'internal', label: 'Internal Workflow Stage' },
   { value: 'destination', label: 'Physical Routing Destination' }
@@ -139,11 +144,13 @@ export const FOLDER_BEHAVIORS = [
 // Standard document tracker constants
 export const DOCUMENT_TYPES = [
   'Activity Design',
-  'Memo',
-  'Letter',
+  'PPMP',
   'Purchase Request',
   'Purchase Order',
+  'Payroll / Honorarium',
   'Disbursement Voucher',
+  'Memo',
+  'Letter',
   'Report',
   'Endorsement',
   'Special Order',

@@ -6,6 +6,7 @@ import BaseBadge from '../components/common/BaseBadge.vue'
 import BaseButton from '../components/common/BaseButton.vue'
 import DocumentModal from '../components/documents/DocumentModal.vue'
 import DocumentDetailDrawer from '../components/documents/DocumentDetailDrawer.vue'
+import FinanceDetailModal from '../components/finance/FinanceDetailModal.vue'
 import TransferModal from '../components/documents/TransferModal.vue'
 import ReceiveModal from '../components/documents/ReceiveModal.vue'
 import CancelTransferModal from '../components/documents/CancelTransferModal.vue'
@@ -25,7 +26,8 @@ import {
 } from '../services/documentService'
 import { getWorkflowFolders } from '../services/workflowService'
 import { getOffices } from '../services/officeService'
-import { DOCUMENT_TYPES, DOCUMENT_STATUSES } from '../db/database'
+import { getFinanceRecords } from '../services/financeService'
+import db, { DOCUMENT_TYPES, DOCUMENT_STATUSES } from '../db/database'
 import { toast } from '../composables/useToast'
 import {
   FileText,
@@ -59,6 +61,7 @@ import {
 const documentsList = ref([])
 const officesList = ref([])
 const workflowFoldersList = ref([])
+const financeRecordsList = ref([])
 const summaryMetrics = ref({
   totalActive: 0,
   inTransitCount: 0,
@@ -75,6 +78,7 @@ const selectedStatus = ref('all')
 const selectedFolder = ref('all')
 const selectedOffice = ref('all')
 const selectedType = ref('all')
+const selectedFinanceFilter = ref('all')
 const filterDateFrom = ref('')
 const filterDateTo = ref('')
 
@@ -85,9 +89,13 @@ const pageSize = ref(10)
 // Modals & Drawer State
 const isAddEditModalOpen = ref(false)
 const documentToEdit = ref(null)
+const initialRegistrationValues = ref(null)
 
 const isDetailDrawerOpen = ref(false)
 const selectedDocumentId = ref(null)
+
+const isAdDetailModalOpen = ref(false)
+const selectedAdRecord = ref(null)
 
 const isTransferModalOpen = ref(false)
 const documentForTransfer = ref(null)
@@ -111,11 +119,11 @@ const copySlip = (num) => {
   }
 }
 
-// Load data from Dexie
+// Load data from Dexie / SQLite
 const loadData = async () => {
   isLoading.value = true
   try {
-    const [docs, offices, metrics, folders] = await Promise.all([
+    const [docs, offices, metrics, folders, finRecords] = await Promise.all([
       getDocuments({
         search: searchQuery.value,
         quickFilter: selectedQuickFilter.value,
@@ -123,18 +131,21 @@ const loadData = async () => {
         workflowFolderId: selectedFolder.value !== 'all' ? selectedFolder.value : null,
         officeId: selectedOffice.value,
         documentType: selectedType.value,
+        financeRecordId: selectedFinanceFilter.value !== 'all' ? selectedFinanceFilter.value : null,
         dateFrom: filterDateFrom.value,
         dateTo: filterDateTo.value
       }),
       getOffices(),
       getDocumentSummaryMetrics(),
-      getWorkflowFolders()
+      getWorkflowFolders(),
+      getFinanceRecords()
     ])
 
     documentsList.value = docs
     officesList.value = offices
     summaryMetrics.value = metrics
     workflowFoldersList.value = folders
+    financeRecordsList.value = finRecords || []
   } catch (err) {
     console.error('Failed to load documents:', err)
   } finally {
@@ -161,7 +172,7 @@ watch(
 
 // Debounced / watcher for filters
 watch(
-  [searchQuery, selectedQuickFilter, selectedStatus, selectedFolder, selectedOffice, selectedType, filterDateFrom, filterDateTo],
+  [searchQuery, selectedQuickFilter, selectedStatus, selectedFolder, selectedOffice, selectedType, selectedFinanceFilter, filterDateFrom, filterDateTo],
   () => {
     currentPage.value = 1
     loadData()
@@ -181,17 +192,48 @@ const paginatedDocs = computed(() => {
 // Modal Openers
 const openAddModal = () => {
   documentToEdit.value = null
+  initialRegistrationValues.value = null
   isAddEditModalOpen.value = true
 }
 
 const openEditModal = (doc) => {
   documentToEdit.value = doc
+  initialRegistrationValues.value = null
   isAddEditModalOpen.value = true
 }
 
 const openDetailDrawer = (doc) => {
   selectedDocumentId.value = doc.id
   isDetailDrawerOpen.value = true
+}
+
+const openAdDetail = async (adIdOrDoc) => {
+  let adId = null
+  if (typeof adIdOrDoc === 'number' || typeof adIdOrDoc === 'string') {
+    adId = Number(adIdOrDoc)
+  } else if (adIdOrDoc && adIdOrDoc.relatedFinanceRecordId) {
+    adId = Number(adIdOrDoc.relatedFinanceRecordId)
+  }
+  if (!adId) return
+
+  const rec = (financeRecordsList.value || []).find((r) => r.id === adId) || (await db.financeRecords.get(adId))
+  if (rec) {
+    selectedAdRecord.value = rec
+    isAdDetailModalOpen.value = true
+  }
+}
+
+const handleRegisterFromAd = (payload) => {
+  initialRegistrationValues.value = payload
+  documentToEdit.value = null
+  isAddEditModalOpen.value = true
+}
+
+const handleOpenDocumentFromAd = (doc) => {
+  if (doc && doc.id) {
+    selectedDocumentId.value = doc.id
+    isDetailDrawerOpen.value = true
+  }
 }
 
 const openTransferModal = (doc) => {
@@ -220,6 +262,7 @@ const handleDocumentSaved = async ({ isEdit, id, data }) => {
       toast.success('Document registered and placed in initial workflow folder.')
     }
     isAddEditModalOpen.value = false
+    initialRegistrationValues.value = null
     await loadData()
   } catch (err) {
     toast.error('Unable to save changes. Please try again.', err.message)
@@ -264,6 +307,7 @@ const resetFilters = () => {
   selectedFolder.value = 'all'
   selectedOffice.value = 'all'
   selectedType.value = 'all'
+  selectedFinanceFilter.value = 'all'
   filterDateFrom.value = ''
   filterDateTo.value = ''
 }
@@ -435,7 +479,7 @@ const getPriorityBadgeVariant = (p) => {
 
         <!-- Reset Button -->
         <button
-          v-if="searchQuery || selectedStatus !== 'all' || selectedFolder !== 'all' || selectedOffice !== 'all' || selectedType !== 'all' || filterDateFrom || filterDateTo"
+          v-if="searchQuery || selectedStatus !== 'all' || selectedFolder !== 'all' || selectedOffice !== 'all' || selectedType !== 'all' || selectedFinanceFilter !== 'all' || filterDateFrom || filterDateTo"
           @click="resetFilters"
           type="button"
           class="text-xs text-zinc-500 dark:text-[#BCAEBA] hover:text-forest-900 dark:hover:text-[#F294B7] underline shrink-0 cursor-pointer"
@@ -444,8 +488,8 @@ const getPriorityBadgeVariant = (p) => {
         </button>
       </div>
 
-      <!-- Advanced Filter Row: Folder, Status, Office, Document Type, Date Range -->
-      <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+      <!-- Advanced Filter Row: Folder, Status, Office, Document Type, Activity Design, Date Range -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
         <!-- Folder Filter -->
         <div>
           <select
@@ -498,6 +542,19 @@ const getPriorityBadgeVariant = (p) => {
           </select>
         </div>
 
+        <!-- Activity Design Filter -->
+        <div>
+          <select
+            v-model="selectedFinanceFilter"
+            class="w-full px-2 py-1.5 bg-white dark:bg-[#251F23] border border-zinc-200 dark:border-[#3D2D38] rounded-lg text-zinc-700 dark:text-[#DDD2D9] text-xs focus:outline-none focus:ring-1 focus:ring-forest-600 dark:focus:ring-[#F294B7] cursor-pointer"
+          >
+            <option value="all">All Activity Designs</option>
+            <option v-for="ad in financeRecordsList" :key="ad.id" :value="ad.id">
+              {{ ad.activityDesign || ('AD #' + ad.id) }}
+            </option>
+          </select>
+        </div>
+
         <!-- Date From Filter -->
         <div>
           <input
@@ -524,7 +581,8 @@ const getPriorityBadgeVariant = (p) => {
           <thead>
             <tr class="border-b border-zinc-200/80 dark:border-[#2D252B] bg-zinc-50/70 dark:bg-[#201A1E] text-zinc-500 dark:text-[#BCAEBA] font-medium align-middle">
               <th class="py-3.5 px-4 font-semibold whitespace-nowrap text-center align-middle w-36">Tracking No.</th>
-              <th class="py-3.5 px-4 font-semibold min-w-[220px] max-w-sm align-middle">Document Title</th>
+              <th class="py-3.5 px-4 font-semibold min-w-[200px] max-w-sm align-middle">Document Title</th>
+              <th class="py-3.5 px-4 font-semibold min-w-[170px] max-w-xs align-middle">Linked Activity Design</th>
               <th class="py-3.5 px-4 font-semibold whitespace-nowrap text-center align-middle w-44">Routing Folder</th>
               <th class="py-3.5 px-4 font-semibold whitespace-nowrap text-center align-middle w-36">Document Type</th>
               <th class="py-3.5 px-4 font-semibold whitespace-nowrap text-center align-middle w-32">Registered</th>
@@ -561,13 +619,30 @@ const getPriorityBadgeVariant = (p) => {
               </td>
 
               <!-- 2. Document Title -->
-              <td class="py-3.5 px-4 min-w-[220px] max-w-sm align-middle">
+              <td class="py-3.5 px-4 min-w-[200px] max-w-sm align-middle">
                 <div class="font-semibold text-zinc-900 dark:text-[#F5EDF1] group-hover:text-forest-900 dark:group-hover:text-[#F294B7] leading-snug transition-colors line-clamp-2" :title="doc.title">
                   {{ doc.title }}
                 </div>
               </td>
 
-              <!-- 3. Workflow Folder -->
+              <!-- 3. Linked Activity Design -->
+              <td class="py-3.5 px-4 min-w-[170px] max-w-xs align-middle" @click.stop>
+                <button
+                  v-if="doc.relatedFinanceRecordId && (doc.linkedAdTitle || doc.relatedFinanceRecord)"
+                  @click="openAdDetail(doc.relatedFinanceRecordId)"
+                  type="button"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-forest-50 dark:bg-[#2D1F28] hover:bg-forest-100 dark:hover:bg-[#3D2534] text-forest-800 dark:text-[#F294B7] border border-forest-200/80 dark:border-[#4A2D3C] text-[11px] font-medium transition-colors text-left max-w-full group/ad cursor-pointer"
+                  :title="'Click to view master Activity Design lifecycle: ' + (doc.linkedAdTitle || 'Activity Design')"
+                >
+                  <Landmark class="w-3 h-3 text-forest-700 dark:text-[#F294B7] shrink-0" />
+                  <span class="truncate">{{ doc.linkedAdTitle || 'Activity Design #' + doc.relatedFinanceRecordId }}</span>
+                </button>
+                <span v-else class="text-zinc-400 dark:text-[#806B76] text-[11px] italic">
+                  — Standalone
+                </span>
+              </td>
+
+              <!-- 4. Workflow Folder -->
               <td class="py-3.5 px-4 whitespace-nowrap align-middle text-center">
                 <div class="flex items-center justify-center">
                   <span class="inline-flex items-center gap-1.5 font-medium text-zinc-700 dark:text-[#DDD2D9] bg-zinc-100 dark:bg-[#251F23] px-2.5 py-1 rounded-md text-[11px] border border-zinc-200/80 dark:border-[#3D2D38]">
@@ -577,7 +652,7 @@ const getPriorityBadgeVariant = (p) => {
                 </div>
               </td>
 
-              <!-- 4. Document Type -->
+              <!-- 5. Document Type -->
               <td class="py-3.5 px-4 whitespace-nowrap align-middle text-center">
                 <div class="flex items-center justify-center">
                   <span class="inline-flex items-center font-medium text-forest-800 dark:text-[#F294B7] bg-forest-50 dark:bg-[#2D1F28] px-2.5 py-1 rounded-md text-[11px] border border-forest-100 dark:border-[#4A2D3C]">
@@ -586,12 +661,12 @@ const getPriorityBadgeVariant = (p) => {
                 </div>
               </td>
 
-              <!-- 5. Date Registered -->
+              <!-- 6. Date Registered -->
               <td class="py-3.5 px-4 text-zinc-500 dark:text-[#BCAEBA] whitespace-nowrap text-[11px] align-middle text-center font-medium">
                 {{ formatDocDate(doc.dateRegistered) }}
               </td>
 
-              <!-- 6. Originating Office -->
+              <!-- 7. Originating Office -->
               <td class="py-3.5 px-4 whitespace-nowrap text-zinc-700 dark:text-[#DDD2D9] text-[11px] align-middle text-center">
                 <div class="inline-flex items-center justify-center gap-1.5 font-medium" :title="doc.originatingOfficeName">
                   <Building2 class="w-3.5 h-3.5 text-zinc-400 dark:text-[#806B76] shrink-0" />
@@ -599,7 +674,7 @@ const getPriorityBadgeVariant = (p) => {
                 </div>
               </td>
 
-              <!-- 7. Current Office or In Flight Destination -->
+              <!-- 8. Current Office or In Flight Destination -->
               <td class="py-3.5 px-4 whitespace-nowrap align-middle text-center">
                 <div v-if="doc.status === 'in_transit'" class="inline-flex items-center justify-center gap-1.5 text-sky-800 dark:text-sky-300 font-semibold text-[11px] bg-sky-50 dark:bg-sky-950/40 px-2.5 py-1 rounded-md border border-sky-200 dark:border-sky-800">
                   <Send class="w-3 h-3 text-sky-600 dark:text-sky-400 animate-pulse shrink-0" />
@@ -611,7 +686,7 @@ const getPriorityBadgeVariant = (p) => {
                 </div>
               </td>
 
-              <!-- 8. Document Status -->
+              <!-- 9. Document Status -->
               <td class="py-3.5 px-4 whitespace-nowrap align-middle text-center">
                 <div class="flex items-center justify-center">
                   <BaseBadge :variant="getStatusBadgeVariant(doc.status)" size="xs" dot>
@@ -620,18 +695,19 @@ const getPriorityBadgeVariant = (p) => {
                 </div>
               </td>
 
-              <!-- 9. Actions Column -->
+              <!-- 10. Actions Column -->
               <td class="py-3.5 px-4 text-center whitespace-nowrap align-middle" @click.stop>
                 <div class="flex items-center justify-center gap-1">
-                  <!-- Link to Finance if AD linked -->
-                  <router-link
+                  <!-- View Activity Design Lifecycle if linked -->
+                  <button
                     v-if="doc.relatedFinanceRecordId"
-                    :to="{ path: '/finance', query: { search: doc.title } }"
-                    class="p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 text-zinc-500 dark:text-[#BCAEBA] hover:text-rose-700 dark:hover:text-rose-400 transition-colors"
-                    title="View Activity Design in Finance Monitoring"
+                    @click="openAdDetail(doc.relatedFinanceRecordId)"
+                    type="button"
+                    class="p-1.5 rounded hover:bg-forest-50 dark:hover:bg-forest-950/40 text-zinc-500 dark:text-[#BCAEBA] hover:text-forest-700 dark:hover:text-[#F294B7] transition-colors cursor-pointer"
+                    title="View master Activity Design lifecycle"
                   >
-                    <FileText class="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                  </router-link>
+                    <Landmark class="w-3.5 h-3.5 text-forest-700 dark:text-[#F294B7]" />
+                  </button>
 
                   <!-- If In Transit: show Confirm Receipt button directly -->
                   <button
@@ -692,7 +768,7 @@ const getPriorityBadgeVariant = (p) => {
 
             <!-- Empty State -->
             <tr v-if="paginatedDocs.length === 0">
-              <td colspan="9" class="py-12 text-center text-xs text-zinc-400 dark:text-[#806B76] space-y-3">
+              <td colspan="10" class="py-12 text-center text-xs text-zinc-400 dark:text-[#806B76] space-y-3">
                 <FolderOpen class="w-8 h-8 text-zinc-300 dark:text-[#4A3D46] mx-auto" />
                 <p class="font-medium text-zinc-600 dark:text-[#DDD2D9]">No physical documents match your criteria.</p>
                 <div class="flex items-center justify-center gap-2">
@@ -751,7 +827,8 @@ const getPriorityBadgeVariant = (p) => {
     <DocumentModal
       :is-open="isAddEditModalOpen"
       :document-to-edit="documentToEdit"
-      @close="isAddEditModalOpen = false"
+      :initial-values="initialRegistrationValues"
+      @close="isAddEditModalOpen = false; initialRegistrationValues = null"
       @saved="handleDocumentSaved"
     />
 
@@ -762,6 +839,18 @@ const getPriorityBadgeVariant = (p) => {
       @close="isDetailDrawerOpen = false"
       @updated="loadData"
       @deleted="loadData"
+      @view-activity-design="openAdDetail"
+      @open-document="handleOpenDocumentFromAd"
+    />
+
+    <!-- Activity Design Master Lifecycle Modal -->
+    <FinanceDetailModal
+      :is-open="isAdDetailModalOpen"
+      :record="selectedAdRecord"
+      @close="isAdDetailModalOpen = false; selectedAdRecord = null"
+      @register-document="handleRegisterFromAd"
+      @open-document="handleOpenDocumentFromAd"
+      @refresh="loadData"
     />
 
     <!-- Quick Transfer Modal -->
