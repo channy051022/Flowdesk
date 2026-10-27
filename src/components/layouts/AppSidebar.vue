@@ -18,7 +18,8 @@ import {
   X,
   Sun,
   Moon,
-  Monitor
+  Monitor,
+  Settings
 } from 'lucide-vue-next'
 import appLogo from '../../assets/icon.png'
 import { getFinanceSummaryMetrics } from '../../services/financeService'
@@ -136,6 +137,17 @@ const navSections = computed(() => [
         name: 'Reports',
         to: '/reports',
         icon: BarChart3,
+        badge: null
+      }
+    ]
+  },
+  {
+    title: 'System & Preferences',
+    items: [
+      {
+        name: 'Settings',
+        to: '/settings',
+        icon: Settings,
         badge: null
       }
     ]

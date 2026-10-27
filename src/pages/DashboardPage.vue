@@ -74,6 +74,11 @@ const greeting = computed(() => {
   return 'Good evening'
 })
 
+const userName = ref(localStorage.getItem('flowdesk_user_name') || 'Swettie')
+const updateUserName = () => {
+  userName.value = localStorage.getItem('flowdesk_user_name') || 'Swettie'
+}
+
 const dismissNotice = ref(false)
 
 // Live Dexie finance metrics
@@ -184,12 +189,15 @@ const loadDashboardData = async () => {
 
 onMounted(() => {
   loadDashboardData()
+  updateUserName()
   window.addEventListener('flowdesk:refresh-counts', loadDashboardData)
+  window.addEventListener('flowdesk:profile-updated', updateUserName)
   window.addEventListener('focus', loadDashboardData)
 })
 
 onUnmounted(() => {
   window.removeEventListener('flowdesk:refresh-counts', loadDashboardData)
+  window.removeEventListener('flowdesk:profile-updated', updateUserName)
   window.removeEventListener('focus', loadDashboardData)
 })
 
@@ -569,7 +577,7 @@ const getPriorityBadgeVariant = (priority) => {
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
         <h2 class="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-[#F5EDF1] tracking-tight">
-          {{ greeting }}, Swettie 💕
+          {{ greeting }}, {{ userName }} 💕
         </h2>
         <p class="text-xs sm:text-sm text-zinc-500 dark:text-[#BCAEBA] mt-0.5">
           Finance internal control monitoring, disbursement pipeline, and compliance schedule.
@@ -577,142 +585,150 @@ const getPriorityBadgeVariant = (priority) => {
       </div>
     </div>
 
-    <!-- Live Finance & Tasks Summary Metrics Row (5 Cards) -->
-    <div class="w-full max-w-full overflow-x-auto pb-2 scrollbar-thin">
-      <div class="flex items-stretch gap-3.5 min-w-max lg:min-w-full">
-        <!-- Metric 1: Total Finance Records -->
-        <BaseCard
-          compact
-          class="flex-1 min-w-[220px] max-w-[280px] h-full flex flex-col justify-between hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors shrink-0"
-        >
+    <!-- Live Finance & Tasks Summary Metrics Row (5 Uniform Cards) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 w-full">
+      <!-- Metric 1: Total Finance Records -->
+      <BaseCard
+        compact
+        class="h-full hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
+      >
+        <div class="flex flex-col justify-between h-full min-h-[96px]">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-medium text-zinc-500 dark:text-[#BCAEBA] truncate">Finance Records</span>
             <span class="p-1.5 rounded-lg bg-forest-50 dark:bg-forest-950/40 text-forest-800 dark:text-forest-300 shrink-0">
               <Landmark class="w-4 h-4" />
             </span>
           </div>
-          <div class="mt-2.5 flex items-baseline gap-2 overflow-x-auto scrollbar-none whitespace-nowrap">
+          <div class="my-2 flex items-baseline gap-2 whitespace-nowrap overflow-hidden">
             <span class="text-2xl font-bold text-zinc-900 dark:text-[#F5EDF1]">
               {{ financeMetrics.totalRecords }}
             </span>
-            <span class="text-xs text-forest-700 dark:text-forest-400 font-medium">monitored</span>
+            <span class="text-xs text-forest-700 dark:text-forest-400 font-medium truncate">monitored</span>
           </div>
           <div
-            class="mt-2 pt-1 border-t border-zinc-100 dark:border-[#2D252B] overflow-x-auto scrollbar-none"
+            class="pt-2 border-t border-zinc-100 dark:border-[#2D252B] overflow-hidden"
             :title="'Total tracked: ' + formatCurrency(financeMetrics.totalAmount)"
           >
-            <p class="text-[11px] text-zinc-500 dark:text-[#BCAEBA] whitespace-nowrap">
+            <p class="text-[11px] text-zinc-500 dark:text-[#BCAEBA] whitespace-nowrap truncate">
               Total tracked: <strong class="text-zinc-800 dark:text-[#DDD2D9] font-mono">{{ formatCurrency(financeMetrics.totalAmount) }}</strong>
             </p>
           </div>
-        </BaseCard>
+        </div>
+      </BaseCard>
 
-        <!-- Metric 2: Pending Payment -->
-        <BaseCard
-          compact
-          class="flex-1 min-w-[220px] max-w-[280px] h-full flex flex-col justify-between hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors shrink-0"
-        >
+      <!-- Metric 2: Pending Payment -->
+      <BaseCard
+        compact
+        class="h-full hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
+      >
+        <div class="flex flex-col justify-between h-full min-h-[96px]">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-medium text-zinc-500 dark:text-[#BCAEBA] truncate">Pending Payment</span>
             <span class="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 shrink-0">
               <Clock class="w-4 h-4" />
             </span>
           </div>
-          <div class="mt-2.5 flex items-baseline gap-2 overflow-x-auto scrollbar-none whitespace-nowrap">
+          <div class="my-2 flex items-baseline gap-2 whitespace-nowrap overflow-hidden">
             <span class="text-2xl font-bold text-zinc-900 dark:text-[#F5EDF1]">
               {{ financeMetrics.pendingPaymentCount }}
             </span>
-            <span class="text-xs text-amber-700 dark:text-amber-400 font-medium">records</span>
+            <span class="text-xs text-amber-700 dark:text-amber-400 font-medium truncate">records</span>
           </div>
           <div
-            class="mt-2 pt-1 border-t border-zinc-100 dark:border-[#2D252B] overflow-x-auto scrollbar-none"
+            class="pt-2 border-t border-zinc-100 dark:border-[#2D252B] overflow-hidden"
             :title="'Amount: ' + formatCurrency(financeMetrics.pendingPaymentAmount)"
           >
-            <p class="text-[11px] text-zinc-500 dark:text-[#BCAEBA] whitespace-nowrap">
+            <p class="text-[11px] text-zinc-500 dark:text-[#BCAEBA] whitespace-nowrap truncate">
               Amount: <strong class="text-zinc-800 dark:text-[#DDD2D9] font-mono">{{ formatCurrency(financeMetrics.pendingPaymentAmount) }}</strong>
             </p>
           </div>
-        </BaseCard>
+        </div>
+      </BaseCard>
 
-        <!-- Metric 3: Awaiting AD Action -->
-        <BaseCard
-          compact
-          class="flex-1 min-w-[220px] max-w-[280px] h-full flex flex-col justify-between hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors shrink-0"
-        >
+      <!-- Metric 3: Awaiting AD Action -->
+      <BaseCard
+        compact
+        class="h-full hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
+      >
+        <div class="flex flex-col justify-between h-full min-h-[96px]">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-medium text-zinc-500 dark:text-[#BCAEBA] truncate">Awaiting AD Action</span>
             <span class="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 shrink-0">
               <AlertCircle class="w-4 h-4" />
             </span>
           </div>
-          <div class="mt-2.5 flex items-baseline gap-2 overflow-x-auto scrollbar-none whitespace-nowrap">
+          <div class="my-2 flex items-baseline gap-2 whitespace-nowrap overflow-hidden">
             <span class="text-2xl font-bold text-zinc-900 dark:text-[#F5EDF1]">
               {{ financeMetrics.awaitingAdCount }}
             </span>
-            <span class="text-xs text-sky-700 dark:text-sky-400 font-medium">actions</span>
+            <span class="text-xs text-sky-700 dark:text-sky-400 font-medium truncate">actions</span>
           </div>
           <div
-            class="mt-2 pt-1 border-t border-zinc-100 dark:border-[#2D252B] overflow-x-auto scrollbar-none"
+            class="pt-2 border-t border-zinc-100 dark:border-[#2D252B] overflow-hidden"
             title="Pending AD issuance or compliance"
           >
-            <p class="text-[11px] text-zinc-500 dark:text-[#BCAEBA] whitespace-nowrap">
-              Pending AD issuance or compliance
+            <p class="text-[11px] text-zinc-500 dark:text-[#BCAEBA] whitespace-nowrap truncate">
+              Pending AD issuance
             </p>
           </div>
-        </BaseCard>
+        </div>
+      </BaseCard>
 
-        <!-- Metric 4: Upcoming Event Dates -->
-        <BaseCard
-          compact
-          class="flex-1 min-w-[220px] max-w-[280px] h-full flex flex-col justify-between hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors shrink-0"
-        >
+      <!-- Metric 4: Upcoming Event Dates -->
+      <BaseCard
+        compact
+        class="h-full hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
+      >
+        <div class="flex flex-col justify-between h-full min-h-[96px]">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-medium text-zinc-500 dark:text-[#BCAEBA] truncate">Upcoming Events</span>
             <span class="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 shrink-0">
-              <Calendar class="w-4 h-4" />
+              <CalendarIcon class="w-4 h-4" />
             </span>
           </div>
-          <div class="mt-2.5 flex items-baseline gap-2 overflow-x-auto scrollbar-none whitespace-nowrap">
+          <div class="my-2 flex items-baseline gap-2 whitespace-nowrap overflow-hidden">
             <span class="text-2xl font-bold text-zinc-900 dark:text-[#F5EDF1]">
               {{ financeMetrics.upcomingEventsCount }}
             </span>
-            <span class="text-xs text-emerald-700 dark:text-emerald-400 font-medium">dates scheduled</span>
+            <span class="text-xs text-emerald-700 dark:text-emerald-400 font-medium truncate">dates scheduled</span>
           </div>
           <div
-            class="mt-2 pt-1 border-t border-zinc-100 dark:border-[#2D252B] overflow-x-auto scrollbar-none"
+            class="pt-2 border-t border-zinc-100 dark:border-[#2D252B] overflow-hidden"
             :title="financeMetrics.upcomingEvents[0] ? 'Next: ' + formatDate(financeMetrics.upcomingEvents[0].eventDate) : 'No pending events'"
           >
-            <p class="text-[11px] text-zinc-500 dark:text-[#BCAEBA] whitespace-nowrap">
+            <p class="text-[11px] text-zinc-500 dark:text-[#BCAEBA] whitespace-nowrap truncate">
               {{ financeMetrics.upcomingEvents[0] ? 'Next: ' + formatDate(financeMetrics.upcomingEvents[0].eventDate) : 'No pending events' }}
             </p>
           </div>
-        </BaseCard>
+        </div>
+      </BaseCard>
 
-        <!-- Metric 5: My Tasks Overview -->
-        <BaseCard
-          compact
-          class="flex-1 min-w-[220px] max-w-[280px] h-full flex flex-col justify-between hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors cursor-pointer group shrink-0"
-          @click="router.push('/tasks')"
-        >
+      <!-- Metric 5: My Tasks Overview -->
+      <BaseCard
+        compact
+        class="h-full hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors cursor-pointer group"
+        @click="router.push('/tasks')"
+      >
+        <div class="flex flex-col justify-between h-full min-h-[96px]">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-medium text-zinc-500 dark:text-[#BCAEBA] truncate">My Tasks Overview</span>
             <span class="p-1.5 rounded-lg bg-pink-50 dark:bg-pink-950/40 text-[#D9467B] dark:text-[#F472B6] shrink-0">
               <CheckSquare class="w-4 h-4" />
             </span>
           </div>
-          <div class="mt-2.5 flex items-baseline gap-2 overflow-x-auto scrollbar-none whitespace-nowrap">
+          <div class="my-2 flex items-baseline gap-2 whitespace-nowrap overflow-hidden">
             <span class="text-2xl font-bold text-zinc-900 dark:text-[#F5EDF1]">
               {{ taskMetrics.totalTasks }}
             </span>
-            <span class="text-xs text-[#D9467B] dark:text-[#F472B6] font-medium">
-              Documents
+            <span class="text-xs text-[#D9467B] dark:text-[#F472B6] font-medium truncate">
+              {{ taskMetrics.totalTasks === 1 ? 'task' : 'tasks' }}
             </span>
           </div>
           <div
-            class="mt-2 pt-1 border-t border-zinc-100 dark:border-[#2D252B] overflow-x-auto scrollbar-none"
+            class="pt-2 border-t border-zinc-100 dark:border-[#2D252B] overflow-hidden"
             :title="`Due: ${taskMetrics.dueTodayCount} • Overdue: ${taskMetrics.overdueCount} • Active: ${taskMetrics.inProgressCount} • Done: ${taskMetrics.completedCount}`"
           >
-            <div class="text-[11px] text-zinc-500 dark:text-[#BCAEBA] whitespace-nowrap flex items-center gap-1.5">
+            <p class="text-[11px] text-zinc-500 dark:text-[#BCAEBA] whitespace-nowrap truncate flex items-center gap-1.5">
               <span :class="taskMetrics.dueTodayCount > 0 ? 'font-bold text-amber-600 dark:text-amber-400' : ''">
                 Due: {{ taskMetrics.dueTodayCount }}
               </span>
@@ -722,12 +738,10 @@ const getPriorityBadgeVariant = (priority) => {
               </span>
               <span>•</span>
               <span>Active: {{ taskMetrics.inProgressCount }}</span>
-              <span>•</span>
-              <span>Done: {{ taskMetrics.completedCount }}</span>
-            </div>
+            </p>
           </div>
-        </BaseCard>
-      </div>
+        </div>
+      </BaseCard>
     </div>
 
     <!-- Quick Action Shortcut Hub -->

@@ -24,7 +24,8 @@ import {
   Sun,
   Moon,
   Monitor,
-  Check
+  Check,
+  Settings
 } from 'lucide-vue-next'
 import { getSystemDueAndOverdueItems } from '../../services/notificationService'
 
@@ -658,6 +659,17 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
+
+      <!-- Quick Settings Button -->
+      <button
+        @click="router.push('/settings')"
+        type="button"
+        class="p-1.5 rounded-lg text-[#806B76] dark:text-[#BCAEBA] hover:text-[#3D2934] dark:hover:text-[#F5EDF1] hover:bg-[#FFF7FA] dark:hover:bg-[#251F23] transition-colors cursor-pointer border border-transparent hover:border-[#F0E3E9] dark:hover:border-[#3D2D38]"
+        title="Settings & System Management"
+        aria-label="Settings"
+      >
+        <Settings class="w-4 h-4 text-[#806B76] dark:text-[#BCAEBA]" />
+      </button>
     </div>
 
     <!-- Quick Search Dialog Overlay -->

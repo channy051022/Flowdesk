@@ -96,6 +96,16 @@ const routes = [
     }
   },
   {
+    path: '/settings',
+    name: 'settings',
+    component: () => import('../pages/SettingsPage.vue'),
+    meta: {
+      title: 'Settings',
+      subtitle: 'System preferences, offline backup, hardware scanner & storage management',
+      icon: 'Settings'
+    }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/dashboard'
   }
